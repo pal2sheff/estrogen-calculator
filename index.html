@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Калькулятор метаболитов эстрогенов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/* Layout: lab-report tool. Left column = inputs (protocol), right column = live interpretation; recommendations and conclusion below. */
+:root {
+  --ink: #1d2433;
+  --muted: #5d6577;
+  --paper: #f6f7f9;
+  --card: #ffffff;
+  --line: #dde1e8;
+  --accent: #7d2a64;
+  --accent-soft: #f4e8f0;
+  --ok: #2f7d4f;
+  --ok-soft: #e4f2e9;
+  --warn: #a86a00;
+  --warn-soft: #fbf0d9;
+  --bad: #b3362b;
+  --bad-soft: #f9e3e0;
+  --p2: #2a7f8f;
+  --p4: #c2412d;
+  --p16: #d29a1f;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 8px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #e6e8ee; --muted: #a1a8b8; --paper: #14171e; --card: #1c2029; --line: #2e3442;
+    --accent: #e08cc4; --accent-soft: #3a2233;
+    --ok: #6cc391; --ok-soft: #1d3326; --warn: #e2b04e; --warn-soft: #3a2f17; --bad: #f08a7e; --bad-soft: #3d201d;
+    --p2: #5bb8c8; --p4: #ef7a63; --p16: #e8bd52;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #e6e8ee; --muted: #a1a8b8; --paper: #14171e; --card: #1c2029; --line: #2e3442;
+  --accent: #e08cc4; --accent-soft: #3a2233;
+  --ok: #6cc391; --ok-soft: #1d3326; --warn: #e2b04e; --warn-soft: #3a2f17; --bad: #f08a7e; --bad-soft: #3d201d;
+  --p2: #5bb8c8; --p4: #ef7a63; --p16: #e8bd52;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: 0.01em; }
+h1 { font-size: 30px; font-weight: 700; }
+h2 { font-size: 20px; font-weight: 600; }
+h3 { font-size: 16px; font-weight: 600; }
+a { color: var(--accent); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 24px 20px 64px; display: grid; gap: 20px; }
+header.top { display: grid; gap: 8px; border-bottom: 2px solid var(--ink); padding-bottom: 14px; }
+header.top .eyebrow { font-family: var(--font-mono); font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; }
+header.top p { margin: 0; color: var(--muted); max-width: 80ch; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: grid; gap: 14px; }
+.card > header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.card > header .hint { color: var(--muted); font-size: 13px; }
+.sticky { position: sticky; top: 12px; }
+@media (max-width: 980px) { .sticky { position: static; } }
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+label.f { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+label.f select, label.f input { font-size: 14px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; }
+.ctx { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 14px; font-size: 14px; }
+.ctx label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.ctx input { margin-top: 3px; accent-color: var(--accent); }
+.note { font-size: 13px; color: var(--muted); background: var(--paper); border-left: 3px solid var(--accent); padding: 8px 10px; border-radius: 0 6px 6px 0; }
+.note.warn { border-left-color: var(--warn); }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--card); border-radius: 6px; padding: 7px 12px; cursor: pointer; font-size: 14px; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--card); font-weight: 600; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr.grp td { background: var(--paper); font-family: var(--font-display); font-weight: 600; font-size: 13px; color: var(--muted); padding-top: 10px; }
+td.name { min-width: 190px; }
+td.name small { display: block; color: var(--muted); font-size: 12px; }
+input.v { width: 92px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-family: var(--font-mono); text-align: right; }
+input.r { width: 66px; padding: 4px 6px; border: 1px dashed var(--line); border-radius: 5px; background: transparent; font-family: var(--font-mono); font-size: 13px; text-align: right; color: var(--muted); }
+.refcell { white-space: nowrap; color: var(--muted); }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.low, .pill.high { background: var(--bad-soft); color: var(--bad); }
+.pill.edge { background: var(--warn-soft); color: var(--warn); }
+.pill.none { background: var(--paper); color: var(--muted); font-weight: 500; }
+.bar { position: relative; height: 8px; width: 110px; border-radius: 4px; background: linear-gradient(to right, var(--bad-soft) 0 33.3%, var(--ok-soft) 33.3% 66.6%, var(--bad-soft) 66.6% 100%); }
+.bar.upper { background: linear-gradient(to right, var(--ok-soft) 0 66.6%, var(--bad-soft) 66.6% 100%); }
+.bar.lower { background: linear-gradient(to right, var(--bad-soft) 0 33.3%, var(--ok-soft) 33.3% 100%); }
+#tblRatio .bar { width: 72px; }
+.bar i { position: absolute; top: -3px; width: 4px; height: 14px; border-radius: 2px; background: var(--ink); transform: translateX(-2px); }
+.chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.chip { border: 1px solid var(--line); border-left-width: 5px; border-radius: 6px; padding: 8px 10px; display: grid; gap: 2px; }
+.chip b { font-family: var(--font-display); font-size: 14px; }
+.chip span { font-size: 13px; color: var(--muted); }
+.chip.ok { border-left-color: var(--ok); }
+.chip.attn { border-left-color: var(--warn); }
+.chip.alert { border-left-color: var(--bad); }
+.chip.na { border-left-color: var(--line); }
+.stack { display: flex; height: 30px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+.stack div { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 600; font-family: var(--font-mono); min-width: 0; overflow: hidden; white-space: nowrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
+.recs { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+.rec { background: var(--card); border: 1px solid var(--line); border-top: 4px solid var(--warn); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; align-content: start; }
+.rec.alert { border-top-color: var(--bad); }
+.rec.info { border-top-color: var(--accent); }
+.rec.ok { border-top-color: var(--ok); }
+.rec .why { font-size: 13px; color: var(--muted); }
+.rec h4 { margin: 4px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-family: var(--font-body); font-weight: 600; }
+.rec ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+.rec .caution { background: var(--bad-soft); color: var(--ink); border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+.ev { display: inline-block; font-size: 11px; font-family: var(--font-mono); color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 0 5px; margin-left: 4px; vertical-align: 1px; }
+textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); font-size: 13px; line-height: 1.55; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 12px; resize: vertical; }
+.method { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; font-size: 14px; }
+.method p, .method ul { margin: 0; }
+.method ul { padding-left: 18px; display: grid; gap: 4px; }
+.banner { background: var(--warn-soft); border: 1px solid var(--warn); border-radius: var(--radius); padding: 10px 14px; font-size: 14px; }
+.hidden { display: none !important; }
+.example-tag { font-family: var(--font-mono); font-size: 12px; color: var(--warn); }
+@media (prefers-reduced-motion: no-preference) { #tblRatio .bar { width: 72px; }
+.bar i { transition: left .25s ease; } }
+.drop { border: 2px dashed var(--line); border-radius: var(--radius); padding: 18px; display: grid; gap: 10px; justify-items: start; background: var(--paper); transition: border-color .15s, background .15s; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop p { margin: 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
+.imp-status { font-size: 14px; display: flex; gap: 8px; align-items: center; }
+.imp-status.err { color: var(--bad); }
+.spin { flex: none; width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+#impReview td.src { font-size: 12px; color: var(--muted); max-width: 300px; font-family: var(--font-mono); }
+#impReview input.v { width: 84px; }
+.imp-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px; color: var(--muted); align-items: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Калькулятор метаболитов эстрогенов</h1>
+</header>
+
+<div class="grid">
+  <!-- LEFT: protocol -->
+  <div style="display:grid; gap:20px;">
+    <section class="card" aria-labelledby="h-imp">
+      <header><h2 id="h-imp">Загрузить бланк анализа</h2><span class="hint">PDF из лаборатории, скан или фото бланка</span></header>
+      <div class="drop" id="drop">
+        <div class="btns"><label class="btn primary" for="impFile" style="cursor:pointer;">Выбрать файл</label><input type="file" id="impFile" accept="application/pdf,.pdf,image/*" class="hidden"></div>
+        <p>или перетащите файл сюда. Файл обрабатывается только в вашем браузере и никуда не отправляется.</p>
+      </div>
+      <div class="imp-status hidden" id="impStatus" role="status" aria-live="polite"></div>
+      <div id="impReview" class="hidden" style="display:grid; gap:10px;">
+        <div class="imp-meta" id="impMeta"></div>
+        <div class="controls">
+          <label class="f" for="impProfile">Формат бланка (определён автоматически)<select id="impProfile"></select></label>
+          <label class="f" for="impStatusSel">Статус пациента<select id="impStatusSel">
+            <option value="fol">Женщина · фолликулярная фаза</option><option value="ov">Женщина · овуляторная фаза</option><option value="lut">Женщина · лютеиновая фаза</option><option value="pm">Женщина · постменопауза без ЗГТ</option><option value="pmhrt">Женщина · постменопауза на ЗГТ</option><option value="male">Мужчина</option></select></label>
+        </div>
+        <div class="tablewrap"><table><thead><tr><th><span class="hidden">Взять</span></th><th>Показатель</th><th>Найдено</th><th>Референс с бланка</th><th>Строка в документе</th></tr></thead><tbody id="impRows"></tbody></table></div>
+        <label style="display:flex; gap:8px; font-size:14px; align-items:center;"><input type="checkbox" id="impUseRefs" checked style="accent-color:var(--accent);"> Использовать референсы с бланка вместо встроенных</label>
+        <div class="btns"><button class="btn primary" type="button" id="impApply">Подставить в калькулятор</button><button class="btn" type="button" id="impCancel">Отмена</button></div>
+        <details><summary style="cursor:pointer; font-size:13px; color:var(--muted);">Показать распознанный текст</summary><textarea id="impText" readonly style="width:100%; min-height:200px; margin-top:8px; font-family:var(--font-mono); font-size:12px; background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:8px;"></textarea></details>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-setup">
+      <header><h2 id="h-setup">1. Панель и пациент</h2><span class="hint">Референсы подставляются автоматически, их можно исправить по бланку</span></header>
+      <div class="controls">
+        <label class="f" for="profile">Лаборатория / формат бланка
+          <select id="profile"></select>
+        </label>
+        <label class="f" for="status">Пол, фаза цикла, менопауза
+          <select id="status">
+            <option value="fol">Женщина · фолликулярная фаза</option>
+            <option value="ov">Женщина · овуляторная фаза</option>
+            <option value="lut" selected>Женщина · лютеиновая фаза (19–23 д.)</option>
+            <option value="pm">Женщина · постменопауза без ЗГТ</option>
+            <option value="pmhrt">Женщина · постменопауза на ЗГТ</option>
+            <option value="male">Мужчина</option>
+          </select>
+        </label>
+        <label class="f" for="age">Возраст, лет
+          <input id="age" type="number" min="14" max="100" step="1" inputmode="numeric">
+        </label>
+        <label class="f" for="bmi">ИМТ, кг/м² (необязательно)
+          <input id="bmi" type="number" min="12" max="70" step="0.1" inputmode="decimal">
+        </label>
+        <label class="f" for="vol">Объём суточной мочи, мл
+          <input id="vol" type="number" min="0" step="10" inputmode="numeric">
+        </label>
+        <label class="f" for="crea">Креатинин в суточной моче, г/сут
+          <input id="crea" type="number" min="0" step="0.01" inputmode="decimal">
+        </label>
+      </div>
+      <div class="note" id="profileNote"></div>
+      <fieldset style="border:0; padding:0; margin:0; display:grid; gap:8px;">
+        <legend style="font-size:13px; color:var(--muted); margin-bottom:6px;">Клинический контекст</legend>
+        <div class="ctx">
+          <label><input type="checkbox" id="cCancer"> Гормонозависимый рак в анамнезе (РМЖ, эндометрий, яичники, простата)</label>
+          <label><input type="checkbox" id="cTam"> Тамоксифен или ингибиторы ароматазы</label>
+          <label><input type="checkbox" id="cPreg"> Беременность или лактация</label>
+          <label><input type="checkbox" id="cCOC"> Гормональная контрацепция (КОК, кольцо, пластырь)</label>
+          <label><input type="checkbox" id="cDIM"> Уже принимает DIM / I3C / сульфорафан</label>
+          <label><input type="checkbox" id="cHPV"> ВПЧ, дисплазия шейки матки</label>
+          <label><input type="checkbox" id="cBenign"> Миома, эндометриоз, мастопатия, гиперплазия эндометрия</label>
+          <label><input type="checkbox" id="cFam"> Семейный анамнез РМЖ / рака яичников</label>
+        </div>
+      </fieldset>
+    </section>
+
+    <section class="card" aria-labelledby="h-input">
+      <header>
+        <h2 id="h-input">2. Результаты анализа</h2>
+        <div class="btns">
+          <button class="btn" id="btnExample" type="button">Заполнить пример</button>
+          <button class="btn" id="btnClear" type="button">Очистить значения</button>
+          <label style="display:flex; gap:6px; align-items:center; font-size:13px; color:var(--muted);"><input type="checkbox" id="showAll" style="accent-color:var(--accent);"> все показатели</label>
+        </div>
+      </header>
+      <div id="exampleTag" class="example-tag">Сейчас загружен пример: вымышленная пациентка 38 лет, лютеиновая фаза, суточная моча. Замените значения своими.</div>
+      <div class="tablewrap">
+        <table id="tblIn">
+          <thead><tr><th>Показатель</th><th>Результат</th><th>Референс (от – до)</th><th>Оценка</th><th aria-label="Положение в диапазоне"></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="note warn hidden" id="convNote"></div>
+      <details id="convBox" class="hidden">
+        <summary style="cursor:pointer; font-size:14px;">Пересчёт единиц по креатинину (мкг/сут ↔ мкг/г креатинина ↔ нмоль/ммоль креатинина)</summary>
+        <div class="tablewrap" style="margin-top:10px;"><table id="tblConv"><thead><tr><th>Показатель</th><th>мкг/сут</th><th>мкг/г креат. (= нг/мг)</th><th>нмоль/ммоль креат.</th></tr></thead><tbody></tbody></table></div>
+        <p style="font-size:13px; color:var(--muted); margin:8px 0 0;">Пересчёт точен арифметически, но референсы разных методов (суточная моча ГХ-МС, разовая порция ВЭЖХ-МС, высушенная моча DUTCH) напрямую не переносятся. Сравнивайте с референсами той лаборатории, где выполнен анализ.</p>
+      </details>
+    </section>
+  </div>
+
+  <!-- RIGHT: interpretation -->
+  <aside class="card sticky" aria-labelledby="h-sum">
+    <header><h2 id="h-sum">3. Профиль метаболизма</h2><span class="hint" id="sumHint"></span></header>
+    <div class="chips" id="chips"></div>
+    <div style="display:grid; gap:8px;">
+      <h3>Фаза I: распределение гидроксилирования</h3>
+      <div class="stack" id="stack" role="img" aria-label="Доли путей 2-OH, 4-OH и 16α-OH"></div>
+      <div class="legend">
+        <span style="--c: var(--p2)">2-OH (защитный)</span>
+        <span style="--c: var(--p4)">4-OH (генотоксичный)</span>
+        <span style="--c: var(--p16)">16α-OH (пролиферативный)</span>
+      </div>
+      <div style="font-size:13px; color:var(--muted);" id="stackNote"></div>
+    </div>
+    <div style="display:grid; gap:8px;">
+      <h3>Расчётные соотношения</h3>
+      <div class="tablewrap"><table id="tblRatio"><thead><tr><th>Индекс</th><th>Значение</th><th>Ориентир</th><th>Оценка</th><th></th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </aside>
+</div>
+
+<section style="display:grid; gap:14px;" aria-labelledby="h-rec">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
+    <h2 id="h-rec">4. Рекомендации</h2>
+    <span style="font-size:13px; color:var(--muted);">Метки доказательности: <span class="ev">РКИ</span> рандомизированные исследования по биомаркеру · <span class="ev">набл.</span> наблюдательные данные · <span class="ev">мех.</span> механистические / доклинические · <span class="ev">практ.</span> клиническая практика</span>
+  </div>
+  <div id="banners" style="display:grid; gap:8px;"></div>
+  <div class="recs" id="recs"></div>
+</section>
+
+<section class="card" aria-labelledby="h-concl">
+  <header><h2 id="h-concl">5. Проект заключения</h2><div class="btns"><button class="btn primary" id="btnCopy" type="button">Скопировать текст</button><span id="copyMsg" style="font-size:13px; color:var(--ok);"></span></div></header>
+  <textarea id="concl" aria-label="Текст заключения" spellcheck="false"></textarea>
+</section>
+
+<section class="card" aria-labelledby="h-meth">
+  <header><h2 id="h-meth">Методика расчёта</h2></header>
+  <div class="method">
+    <div style="display:grid; gap:8px;">
+      <h3>Как считаются индексы</h3>
+      <ul>
+        <li><b>2/16</b> = 2-OHE1 ÷ 16α-OHE1 (DUTCH, Гемохелп) или (2-OHE1 + 2-OHE2) ÷ 16α-OHE1 (Хеликс, КДЛ, Хромолаб, панель «Олимп»). Клинический ориентир российских лабораторий: выше 2,0.</li>
+        <li><b>2/4</b> = 2-OHE1 ÷ 4-OHE1. Ориентир DUTCH 5,4–12,6.</li>
+        <li><b>Доли пути</b> = каждый из 2-OHE1, 4-OHE1, 16α-OHE1 ÷ их сумма. DUTCH ожидает 60–80 % / 7,5–11 % / 13–30 %; Инвитро: доля 16α-OHE1 до 20 %.</li>
+        <li><b>Метилирование</b> = 2-OMeE1 ÷ 2-OHE1 и 4-OMeE1 ÷ 4-OHE1 (обратные индексы 2-OHE1/2-OMeE1 и 4-OHE1/4-OMeE1 растут при слабом метилировании).</li>
+        <li><b>Эстрогенный коэффициент</b> = E3 ÷ (E1 + E2), ориентир выше 1,0.</li>
+        <li><b>2-путь / исходные</b> = (2-OHE1 + 2-OHE2 + 2-OMeE1 + 2-OMeE2) ÷ (E1 + E2); референса нет, в проспективных данных NCI больший индекс связан с меньшим риском РМЖ в постменопаузе.</li>
+        <li>Соотношения в мкг и в нмоль отличаются меньше чем на 5 % (близкие молекулярные массы), поэтому индексы сопоставимы между бланками.</li>
+      </ul>
+    </div>
+    <div style="display:grid; gap:8px;">
+      <h3>Ограничения</h3>
+      <ul>
+        <li>Референсы сильно различаются между методами и лабораториями: в одной панели 2/16 «норма» 0,4–28, в другой 2,69–11,83. Всегда сверяйтесь с бланком.</li>
+        <li>Систематический обзор проспективных исследований не подтвердил отношение 2/16 как самостоятельный предиктор рака молочной железы; более информативны полный профиль, 4-OH путь и метилирование.</li>
+        <li>Интерпретация действительна для образца, собранного в указанную фазу цикла. Беременность, КОК и ЗГТ меняют профиль.</li>
+        <li>Дозировки нутрицевтиков ориентировочные, из клинических исследований и практики. Назначение и совместимость с терапией определяет врач.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script src="importer.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* ---------- Data ---------- */
+const CREAT_MW = 113.12;
+const ANALYTES = [
+  { k: 'E1', name: 'Эстрон', code: 'E1', grp: 'Исходные эстрогены', mw: 270.37 },
+  { k: 'E2', name: 'Эстрадиол', code: 'E2', grp: 'Исходные эстрогены', mw: 272.38 },
+  { k: 'E3', name: 'Эстриол', code: 'E3', grp: 'Исходные эстрогены', mw: 288.38 },
+  { k: 'OH2E1', name: '2-гидроксиэстрон', code: '2-OHE1', grp: 'Фаза I · гидроксилирование', mw: 286.37 },
+  { k: 'OH2E2', name: '2-гидроксиэстрадиол', code: '2-OHE2', grp: 'Фаза I · гидроксилирование', mw: 288.38 },
+  { k: 'OH4E1', name: '4-гидроксиэстрон', code: '4-OHE1', grp: 'Фаза I · гидроксилирование', mw: 286.37 },
+  { k: 'OH4E2', name: '4-гидроксиэстрадиол', code: '4-OHE2', grp: 'Фаза I · гидроксилирование', mw: 288.38 },
+  { k: 'OH16E1', name: '16α-гидроксиэстрон', code: '16α-OHE1', grp: 'Фаза I · гидроксилирование', mw: 286.37 },
+  { k: 'MeO2E1', name: '2-метоксиэстрон', code: '2-OMeE1', grp: 'Фаза II · метилирование (COMT)', mw: 300.39 },
+  { k: 'MeO2E2', name: '2-метоксиэстрадиол', code: '2-OMeE2', grp: 'Фаза II · метилирование (COMT)', mw: 302.41 },
+  { k: 'MeO4E1', name: '4-метоксиэстрон', code: '4-OMeE1', grp: 'Фаза II · метилирование (COMT)', mw: 300.39 },
+  { k: 'PD', name: 'Прегнандиол', code: 'метаболит прогестерона', grp: 'Прогестерон', mw: 320.51 }
+];
+const A = Object.fromEntries(ANALYTES.map(a => [a.k, a]));
+
+/* Ranges: [low, high]; null = no bound. Status keys: fol, ov, lut, pm, male. pmhrt falls back to lut. */
+const PROFILES = {
+  invitro24: {
+    label: 'Суточная моча · мкг/сут · ГХ-МС (Инвитро KZ № 1771)',
+    unit: 'мкг/сут', kind: 'ug24',
+    analytes: ['E1', 'E2', 'E3', 'OH2E1', 'OH4E1', 'OH16E1', 'MeO2E1', 'PD'],
+    r216: 'single',
+    note: 'Суточная моча с консервантом, газовая хроматография с масс-детекцией. Женщинам с циклом 28 дней сбор на 19–21 день. Для мужчин и беременных референсы лабораторией не валидированы. Прегнандиол в мкг/сут.',
+    ranges: {
+      fol: { E1: [2.0, 39.0], E2: [1.0, 23.0], E3: [3.0, 48.0], PD: [null, 2500] },
+      ov: { E1: [11, 46], E2: [4.0, 45.0], E3: [20, 130] },
+      lut: { E1: [4.7, 27.6], E2: [2.0, 7.8], E3: [7.0, 29.7], OH2E1: [3.2, 30.1], OH16E1: [1.8, 7.8], OH4E1: [0.35, 2.63], MeO2E1: [1.0, 9.0], PD: [1450, 6140] },
+      pm: { E1: [0.9, 6.5], E2: [0, 3.5], E3: [0, 7], OH2E1: [0.2, 5.2], OH16E1: [0.2, 3.0], OH4E1: [0.05, 1.0], MeO2E1: [0.3, 3.6], PD: [200, 1000] },
+      male: {}
+    },
+    ratios: {
+      all: { s16: [0, 20], eq: [1.0, null], m2: [0.2, 0.65] }
+    }
+  },
+  gemo24: {
+    label: 'Суточная моча · мкг/сут · 10 показателей ГХ/ВЭЖХ-МС (Гемохелп, CMD, КДЛ)',
+    unit: 'мкг/сут', kind: 'ug24',
+    analytes: ['E1', 'E2', 'E3', 'OH2E1', 'OH2E2', 'OH4E1', 'OH16E1', 'MeO2E1', 'MeO4E1', 'PD'],
+    r216: 'single',
+    note: 'Формат «Эстрогены и их метаболиты (10 показателей) в суточной моче». Метаболиты валидированы только для лютеиновой фазы и постменопаузы. Прегнандиол пересчитан из мг/сут в мкг/сут (1 мг = 1000 мкг).',
+    ranges: {
+      fol: { E1: [2, 39], E2: [1, 23], E3: [3, 48], PD: [null, 2600] },
+      ov: { E1: [11, 46], E2: [4, 45], E3: [20, 130] },
+      lut: { E1: [3.3, 44.6], E2: [1.4, 12.2], E3: [6.1, 32.4], OH2E1: [1.38, 35.98], OH2E2: [0.45, 7.48], OH4E1: [0.35, 5.6], OH16E1: [0.75, 11.76], MeO2E1: [1.17, 7.6], MeO4E1: [1.48, 6.01], PD: [2600, 10600] },
+      pm: { E1: [1, 7], E2: [0, 4], E3: [0, 30], OH2E1: [2.54, 8.68], OH2E2: [0.31, 5.42], OH4E1: [0.31, 4.6], OH16E1: [0.74, 5.18], MeO2E1: [1.03, 8.06], MeO4E1: [1.71, 6.79] },
+      male: { E1: [2, 8], E2: [1, 4], E3: [9, 60] }
+    },
+    ratios: {
+      lut: { r216: [0.54, 11.82], m2inv: [0.66, 9.00], m4inv: [0.12, 2.20] },
+      pm: { r216: [0.71, 5.42], m2inv: [0.56, 7.11], m4inv: [0.09, 2.02] }
+    }
+  },
+  helix: {
+    label: 'Панель 6 метаболитов · нмоль/ммоль креатинина · ВЭЖХ-МС («Олимп», Хеликс, КДЛ, Хромолаб)',
+    unit: 'нмоль/ммоль креат.', kind: 'nmol',
+    analytes: ['OH2E1', 'OH2E2', 'OH4E1', 'OH16E1', 'MeO2E1', 'MeO4E1'],
+    r216: 'sum',
+    note: 'Состав совпадает с панелью КДЛ «Олимп» «Метаболиты эстрогенов, расчёт соотношений (оценка риска онкопатологии)»: 2-OHE1, 2-OHE2, 4-OHE1, 16α-OHE1, 2-OMeE1, 4-OMeE1 и 5 индексов. «Олимп» не публикует референсы на сайте, поэтому подставлены значения Хеликс/КДЛ; при расхождении введите референсы с бланка. Если бланк выдан в мкг/сут, выберите формат суточной мочи.',
+    ranges: {
+      lut: { OH2E1: [0.17, 7.95], OH2E2: [0.08, 1.37], OH4E1: [0.028, 1.09], OH16E1: [0.044, 5.9], MeO2E1: [0.05, 1.7], MeO4E1: [0.0003, 0.0068] },
+      pm: { OH2E1: [0.06, 1.46], OH2E2: [0.04, 0.86], OH4E1: [0.005, 0.19], OH16E1: [0.057, 0.38], MeO2E1: [0.009, 0.56], MeO4E1: [0.0002, 0.0068] },
+      male: { OH2E1: [0.08, 1.7], OH2E2: [0.01, 0.31], OH4E1: [0.009, 0.21], OH16E1: [0.017, 0.57], MeO2E1: [0.01, 0.5], MeO4E1: [0.0003, 0.0031] }
+    },
+    ratios: {
+      lut: { r216: [0.4, 28], m2: [0.07, 0.3], m4: [null, 0.03], m2inv: [2.9, 12.6], m4inv: [15, 353] },
+      pm: { r216: [0.3, 15], m2: [0.04, 0.4], m4: [null, 0.08], m2inv: [0.73, 8.5], m4inv: [1, 185] },
+      male: { r216: [2.5, 3.6], m2: [0.05, 0.4], m4: [null, 0.06], m2inv: [2.7, 7.8], m4inv: [5, 89] }
+    }
+  },
+  dutch: {
+    label: 'DUTCH · нг/мг креатинина · высушенная моча (Precision Analytical)',
+    unit: 'нг/мг креат.', kind: 'ngmg',
+    analytes: ['E1', 'E2', 'E3', 'OH2E1', 'OH4E1', 'OH16E1', 'MeO2E1', 'OH2E2', 'OH4E2', 'PD'],
+    r216: 'single',
+    note: 'Четыре порции высушенной мочи за сутки, результаты нормированы на креатинин. Прегнандиол = b-прегнандиол. На ЗГТ DUTCH сравнивает с лютеиновым диапазоном.',
+    ranges: {
+      fol: { E1: [4.0, 12.0], E2: [1.0, 2.0], PD: [100, 300] },
+      ov: { E1: [22, 68], E2: [4.0, 12.0], PD: [100, 300] },
+      lut: { E1: [12, 26], E2: [1.8, 4.5], E3: [5, 18], OH2E1: [5.1, 13.1], OH4E1: [0, 1.8], OH16E1: [0.7, 2.6], MeO2E1: [2.5, 6.5], OH2E2: [0, 3.1], OH4E2: [0, 0.52], PD: [600, 2000], TOT: [35, 70] },
+      pm: { E1: [1.0, 7.0], E2: [0.2, 0.7], E3: [0.6, 4.0], OH2E1: [0.3, 2.0], OH4E1: [0, 0.3], OH16E1: [0.2, 0.6], MeO2E1: [0.3, 1.4], OH2E2: [0, 0.52], OH4E2: [0, 0.12], PD: [60, 200], TOT: [3.5, 15] },
+      male: { E1: [4, 16], E2: [0.5, 2.2], E3: [2, 8], OH2E1: [0, 5.9], OH4E1: [0, 0.8], OH16E1: [0, 1.2], MeO2E1: [0, 2.8], OH2E2: [0, 0.6], OH4E2: [0, 0.3], TOT: [10, 34] }
+    },
+    ratios: {
+      female: { r216: [2.69, 11.83], r24: [5.4, 12.62], m2: [0.39, 0.67], s2: [60, 80], s4: [7.5, 11], s16: [13, 30] },
+      male: { r216: [2.85, 9.88], r24: [6.44, 12.6], m2: [0.4, 0.7], s2: [60, 80], s4: [7.5, 11], s16: [13, 30] }
+    }
+  },
+  custom: {
+    label: 'Другая лаборатория · ввести референсы с бланка',
+    unit: 'ед. бланка', kind: 'custom',
+    analytes: ANALYTES.map(a => a.k),
+    r216: 'auto',
+    note: 'Введите значения и референсы с бланка. Для соотношений используются общие клинические ориентиры (2/16 выше 2,0; эстрогенный коэффициент выше 1,0; ориентиры DUTCH для 2/4 и долей путей). Единицы у всех показателей должны быть одинаковыми.',
+    ranges: {}, ratios: {}
+  }
+};
+
+/* Generic clinical targets used when a profile has no ratio reference */
+const GENERIC = {
+  r216: { r: [2.0, null], src: 'клинический ориентир' },
+  r24: { r: [5.4, 12.62], src: 'ориентир DUTCH' },
+  s2: { r: [60, 80], src: 'ориентир DUTCH' },
+  s4: { r: [7.5, 11], src: 'ориентир DUTCH' },
+  s16: { r: [13, 30], src: 'ориентир DUTCH' },
+  eq: { r: [1.0, null], src: 'ориентир' },
+  m2: { r: [0.39, 0.67], src: 'ориентир DUTCH' }
+};
+
+const EXAMPLE = {
+  profile: 'invitro24', status: 'lut', age: 38, bmi: 29.4, vol: 1650, crea: 1.15,
+  ctx: { cBenign: true },
+  values: { E1: 31.5, E2: 9.4, E3: 18.2, OH2E1: 7.8, OH4E1: 2.1, OH16E1: 6.1, MeO2E1: 1.4, PD: 1180 }
+};
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const parseNum = s => { if (s == null) return null; const t = String(s).trim().replace(',', '.'); if (t === '') return null; const n = Number(t); return Number.isFinite(n) ? n : null; };
+function fmt(x) {
+  if (x == null || !Number.isFinite(x)) return '—';
+  const a = Math.abs(x);
+  let s;
+  if (a >= 100) s = x.toFixed(0);
+  else if (a >= 10) s = x.toFixed(1);
+  else if (a >= 1) s = x.toFixed(2);
+  else if (a >= 0.01) s = x.toFixed(3);
+  else if (a === 0) s = '0';
+  else s = x.toPrecision(2);
+  return s.replace('.', ',');
+}
+const fmtT = x => (x == null ? '—' : fmt(x).replace(/(,\d*?)0+$/, '$1').replace(/,$/, ''));
+const fmtR = r => {
+  if (!r) return '—';
+  const [lo, hi] = r;
+  if (lo == null && hi == null) return '—';
+  if (lo == null) return 'до ' + fmtT(hi);
+  if (hi == null) return 'выше ' + fmtT(lo);
+  return fmtT(lo) + ' – ' + fmtT(hi);
+};
+function classify(v, r) {
+  if (v == null) return 'none';
+  if (!r || (r[0] == null && r[1] == null)) return 'noref';
+  const [lo, hi] = r;
+  if (lo != null && v < lo) return 'low';
+  if (hi != null && v > hi) return 'high';
+  if (lo != null && hi != null && hi > lo) {
+    const w = hi - lo;
+    if ((lo > 0 && v - lo < 0.08 * w) || hi - v < 0.08 * w) return 'edge';
+  }
+  return 'ok';
+}
+const PILL = { ok: ['ok', 'в норме'], low: ['low', 'ниже'], high: ['high', 'выше'], edge: ['edge', 'у границы'], none: ['none', 'нет данных'], noref: ['none', 'нет референса'] };
+function pill(st, labels) { const p = PILL[st]; const txt = (labels && labels[st]) || p[1]; return '<span class="pill ' + p[0] + '">' + txt + '</span>'; }
+function bar(v, r) {
+  if (v == null || !r || (r[0] == null && r[1] == null)) return '';
+  let [lo, hi] = r; let cls = '';
+  let pos;
+  if (lo == null || lo === 0) {
+    cls = 'upper'; lo = 0;
+    if (v <= hi) pos = 66.6 * (v / hi);
+    else pos = 66.6 + 33.4 * Math.min(1, (v - hi) / (hi * 1.5));
+  } else if (hi == null) {
+    cls = 'lower';
+    if (v < lo) pos = 33.3 * (v / lo);
+    else pos = 33.3 + 66.7 * Math.min(1, (v - lo) / (lo * 4));
+  } else {
+    if (v < lo) pos = 33.3 * Math.max(0, v / lo);
+    else if (v <= hi) pos = 33.3 + 33.3 * (v - lo) / (hi - lo);
+    else pos = 66.6 + 33.4 * Math.min(1, (v - hi) / (hi * 1.5));
+  }
+  pos = Math.max(1, Math.min(99, pos));
+  return '<div class="bar ' + cls + '"><i style="left:' + pos.toFixed(1) + '%"></i></div>';
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------- State ---------- */
+const state = { refs: {}, values: {} };
+
+function statusKey() { const s = $('status').value; return s === 'pmhrt' ? 'lut' : s; }
+function isFemale() { return $('status').value !== 'male'; }
+function profile() { return PROFILES[$('profile').value]; }
+
+function profileRanges(pk, st) {
+  const p = PROFILES[pk];
+  return (p.ranges[st]) || {};
+}
+function ratioRefsFor(pk, statusVal) {
+  const p = PROFILES[pk];
+  const st = statusVal === 'pmhrt' ? 'lut' : statusVal;
+  if (pk === 'dutch') return p.ratios[st === 'male' ? 'male' : 'female'] || {};
+  if (p.ratios.all) return p.ratios.all;
+  return p.ratios[st] || {};
+}
+
+/* ---------- Build inputs ---------- */
+function buildProfileSelect() {
+  const sel = $('profile');
+  sel.innerHTML = Object.entries(PROFILES).map(([k, p]) => '<option value="' + k + '">' + esc(p.label) + '</option>').join('');
+}
+function visibleAnalytes() {
+  const p = profile();
+  if ($('showAll').checked) return ANALYTES.map(a => a.k);
+  // include any analyte the user already filled even if not in panel
+  const extra = ANALYTES.map(a => a.k).filter(k => !p.analytes.includes(k) && state.values[k] != null);
+  return ANALYTES.map(a => a.k).filter(k => p.analytes.includes(k) || extra.includes(k));
+}
+function loadRefs() {
+  const pk = $('profile').value; const st = statusKey();
+  const r = profileRanges(pk, st);
+  state.refs = {};
+  ANALYTES.forEach(a => { state.refs[a.k] = r[a.k] ? r[a.k].slice() : [null, null]; });
+  state.refs.TOT = r.TOT ? r.TOT.slice() : null;
+}
+function buildTable() {
+  const tb = $('tblIn').querySelector('tbody');
+  const ks = visibleAnalytes();
+  const unit = profile().unit;
+  let html = ''; let lastGrp = '';
+  ks.forEach(k => {
+    const a = A[k];
+    if (a.grp !== lastGrp) { html += '<tr class="grp"><td colspan="5">' + esc(a.grp) + '</td></tr>'; lastGrp = a.grp; }
+    const v = state.values[k];
+    const r = state.refs[k] || [null, null];
+    html += '<tr data-k="' + k + '">' +
+      '<td class="name"><label for="v_' + k + '">' + esc(a.name) + '</label><small>' + esc(a.code) + ' · ' + esc(unit) + '</small></td>' +
+      '<td><input class="v" id="v_' + k + '" inputmode="decimal" autocomplete="off" value="' + (v == null ? '' : String(v).replace('.', ',')) + '" aria-label="' + esc(a.name) + ', значение"></td>' +
+      '<td class="refcell"><input class="r" id="lo_' + k + '" inputmode="decimal" value="' + (r[0] == null ? '' : String(r[0]).replace('.', ',')) + '" aria-label="' + esc(a.name) + ', нижняя граница" placeholder="от"> – <input class="r" id="hi_' + k + '" inputmode="decimal" value="' + (r[1] == null ? '' : String(r[1]).replace('.', ',')) + '" aria-label="' + esc(a.name) + ', верхняя граница" placeholder="до"></td>' +
+      '<td class="st"></td><td class="br"></td></tr>';
+  });
+  tb.innerHTML = html;
+  tb.querySelectorAll('input').forEach(inp => inp.addEventListener('input', onInput));
+}
+function onInput(e) {
+  const id = e.target.id; const [kind, k] = id.split('_');
+  const n = parseNum(e.target.value);
+  if (kind === 'v') state.values[k] = n;
+  else if (kind === 'lo') state.refs[k][0] = n;
+  else if (kind === 'hi') state.refs[k][1] = n;
+  $('exampleTag').classList.add('hidden');
+  compute();
+}
+
+/* ---------- Compute ---------- */
+function compute() {
+  const pk = $('profile').value; const p = PROFILES[pk];
+  const stVal = $('status').value; const st = statusKey();
+  const V = state.values; const val = k => (V[k] == null ? null : V[k]);
+  const ctx = {};
+  ['cCancer', 'cTam', 'cPreg', 'cCOC', 'cDIM', 'cHPV', 'cBenign', 'cFam'].forEach(id => ctx[id] = $(id).checked);
+  const age = parseNum($('age').value), bmi = parseNum($('bmi').value), vol = parseNum($('vol').value), crea = parseNum($('crea').value);
+
+  // analyte statuses
+  const S = {};
+  ANALYTES.forEach(a => { S[a.k] = classify(val(a.k), state.refs[a.k]); });
+  document.querySelectorAll('#tblIn tbody tr[data-k]').forEach(tr => {
+    const k = tr.dataset.k;
+    tr.querySelector('.st').innerHTML = pill(S[k]);
+    tr.querySelector('.br').innerHTML = bar(val(k), state.refs[k]);
+  });
+
+  // totals
+  const estrogenKeys = ANALYTES.filter(a => a.k !== 'PD').map(a => a.k);
+  const filledE = estrogenKeys.filter(k => val(k) != null);
+  const tot = filledE.length ? filledE.reduce((s, k) => s + val(k), 0) : null;
+
+  // ratios
+  const R = {};
+  const o2 = val('OH2E1'), o2e2 = val('OH2E2'), o4 = val('OH4E1'), o16 = val('OH16E1'), m2 = val('MeO2E1'), m4 = val('MeO4E1');
+  let r216def = p.r216 === 'auto' ? (o2e2 != null ? 'sum' : 'single') : p.r216;
+  if (r216def === 'sum' && o2e2 == null) r216def = 'single';
+  if (o2 != null && o16) R.r216 = (r216def === 'sum' ? o2 + o2e2 : o2) / o16;
+  if (o2 != null && o4) R.r24 = o2 / o4;
+  if (o2 != null && o4 != null && o16 != null && (o2 + o4 + o16) > 0) {
+    const sum = o2 + o4 + o16; R.s2 = 100 * o2 / sum; R.s4 = 100 * o4 / sum; R.s16 = 100 * o16 / sum;
+  }
+  if (m2 != null && o2) R.m2 = m2 / o2;
+  if (m2 && o2 != null) R.m2inv = o2 / m2;
+  if (m4 != null && o4) R.m4 = m4 / o4;
+  if (m4 && o4 != null) R.m4inv = o4 / m4;
+  const e1 = val('E1'), e2 = val('E2'), e3 = val('E3');
+  if (e3 != null && e1 != null && e2 != null && (e1 + e2) > 0) R.eq = e3 / (e1 + e2);
+  if (e1 != null && e2 != null && (e1 + e2) > 0 && o2 != null) R.hp = (o2 + (o2e2 || 0) + (m2 || 0) + (val('MeO2E2') || 0)) / (e1 + e2);
+  if (val('PD') != null && e2) R.pde2 = val('PD') / e2;
+  if (tot != null) R.tot = tot;
+
+  const pRefs = ratioRefsFor(pk, stVal);
+  const RDEF = [
+    { k: 'r216', name: r216def === 'sum' ? '2/16: (2-OHE1+2-OHE2)/16α-OHE1' : '2/16: 2-OHE1/16α-OHE1', tip: 'баланс защитного и пролиферативного пути' },
+    { k: 'r24', name: '2/4: 2-OHE1/4-OHE1', tip: 'перевес 2-OH над генотоксичным 4-OH' },
+    { k: 's2', name: 'Доля 2-OH, %', tip: '' },
+    { k: 's4', name: 'Доля 4-OH, %', tip: '' },
+    { k: 's16', name: 'Доля 16α-OH, %', tip: '' },
+    { k: 'm2', name: 'Метилирование 2-пути: 2-OMeE1/2-OHE1', tip: 'активность COMT' },
+    { k: 'm2inv', name: '2-OHE1/2-OMeE1', tip: 'рост = слабое метилирование' },
+    { k: 'm4', name: 'Метилирование 4-пути: 4-OMeE1/4-OHE1', tip: '' },
+    { k: 'm4inv', name: '4-OHE1/4-OMeE1', tip: 'рост = слабое обезвреживание 4-OH' },
+    { k: 'eq', name: 'Эстрогенный коэффициент E3/(E1+E2)', tip: '' },
+    { k: 'hp', name: '2-путь / исходные эстрогены', tip: 'без референса' },
+    { k: 'pde2', name: 'Прегнандиол / E2', tip: 'без референса' },
+    { k: 'tot', name: 'Сумма эстрогенов и метаболитов', tip: '' }
+  ];
+  const RS = {}; const RR = {};
+  let rhtml = '';
+  RDEF.forEach(d => {
+    if (R[d.k] == null) return;
+    let ref = null, src = '';
+    if (d.k === 'tot') { ref = state.refs.TOT; src = ref ? 'референс панели' : ''; }
+    else if (pRefs[d.k]) { ref = pRefs[d.k]; src = 'референс панели'; }
+    else if (GENERIC[d.k] && !(pk === 'gemo24' && d.k === 'm2')) { ref = GENERIC[d.k].r; src = GENERIC[d.k].src; }
+    if ((d.k === 'm2inv' || d.k === 'm4inv' || d.k === 'm4') && !pRefs[d.k]) return; // show inverse only where the lab reports it
+    // 2/16: also check the clinical 2.0 target when the lab range accepts lower values
+    let st = classify(R[d.k], ref);
+    if (d.k === 'r216' && R.r216 < 2 && st !== 'low') st = 'edge2';
+    if ((d.k === 'm4' || d.k === 'm2') && st === 'high') st = 'hiok';
+    RS[d.k] = st; RR[d.k] = ref;
+    const labels = { edge2: 'ниже 2,0' };
+    let pl;
+    if (st === 'edge2') pl = '<span class="pill edge">ниже 2,0</span>';
+    else if (st === 'hiok') pl = '<span class="pill ok">выше (не патология)</span>';
+    else if (st === 'noref') pl = '<span class="pill none">справочно</span>';
+    else pl = pill(st, labels);
+    const unitSfx = (d.k === 's2' || d.k === 's4' || d.k === 's16') ? ' %' : '';
+    rhtml += '<tr><td>' + esc(d.name) + (d.tip ? '<small style="display:block;color:var(--muted);font-size:12px;">' + esc(d.tip) + '</small>' : '') + '</td>' +
+      '<td class="num">' + fmt(R[d.k]) + unitSfx + '</td>' +
+      '<td class="refcell num" title="' + esc(src) + '">' + (ref ? fmtR(ref) + unitSfx : '—') + (src && src !== 'референс панели' ? '<small style="display:block;font-family:var(--font-body);font-size:11px;">' + esc(src) + '</small>' : '') + '</td>' +
+      '<td>' + pl + '</td><td>' + bar(R[d.k], ref) + '</td></tr>';
+  });
+  $('tblRatio').querySelector('tbody').innerHTML = rhtml || '<tr><td colspan="5" style="color:var(--muted)">Введите хотя бы 2-OHE1 и 16α-OHE1, чтобы рассчитать индексы.</td></tr>';
+
+  // stacked bar
+  if (R.s2 != null) {
+    $('stack').innerHTML = [['s2', 'var(--p2)'], ['s4', 'var(--p4)'], ['s16', 'var(--p16)']].map(([k, c]) => '<div style="width:' + R[k].toFixed(2) + '%; background:' + c + '">' + (R[k] >= 7 ? Math.round(R[k]) + '%' : '') + '</div>').join('');
+    $('stackNote').textContent = 'Пациент: 2-OH ' + fmt(R.s2) + ' %, 4-OH ' + fmt(R.s4) + ' %, 16α-OH ' + fmt(R.s16) + ' %. Ожидаемо (DUTCH): 60–80 % / 7,5–11 % / 13–30 %.' + (pk === 'invitro24' ? ' Инвитро: доля 16α-OH до 20 %.' : '');
+  } else {
+    $('stack').innerHTML = '<div style="width:100%; background:var(--paper); color:var(--muted); font-family:var(--font-body); font-weight:500;">нужны 2-OHE1, 4-OHE1 и 16α-OHE1</div>';
+    $('stackNote').textContent = '';
+  }
+
+  /* ---------- Flags ---------- */
+  const F = {};
+  const low = k => S[k] === 'low', high = k => S[k] === 'high';
+  F.hiLoad = high('E1') || high('E2') || (RS.tot === 'high');
+  F.loLoad = (low('E1') && low('E2')) || (RS.tot === 'low') || (low('E2') && val('E1') == null);
+  F.low216 = R.r216 != null && (RS.r216 === 'low' || RS.r216 === 'edge2');
+  F.hi16 = high('OH16E1') || RS.s16 === 'high';
+  F.lo16 = low('OH16E1');
+  F.hi4 = high('OH4E1') || high('OH4E2') || RS.r24 === 'low' || RS.s4 === 'high';
+  F.lo2 = low('OH2E1') && !F.loLoad;
+  F.lowMeth = RS.m2 === 'low' || RS.m2inv === 'high' || RS.m4inv === 'high' || (low('MeO2E1') && !low('OH2E1'));
+  F.lowEQ = R.eq != null && R.eq < 1;
+  F.loPD = (stVal === 'lut') && low('PD');
+  F.hiPD = high('PD') && stVal !== 'pmhrt';
+  F.dimOver = ctx.cDIM && R.r216 != null && RS.r216 === 'high';
+  F.obese = bmi != null && bmi >= 30; F.over = bmi != null && bmi >= 25 && bmi < 30;
+  // collection quality
+  const Q = [];
+  if (crea != null) {
+    const lo = isFemale() ? 0.6 : 0.8, hi = isFemale() ? 1.8 : 2.5;
+    if (crea < lo) Q.push('Креатинин ' + fmt(crea) + ' г/сут ниже ожидаемого (' + fmt(lo) + '–' + fmt(hi) + '): возможен неполный сбор суточной мочи, результаты в мкг/сут занижены.');
+    else if (crea > hi) Q.push('Креатинин ' + fmt(crea) + ' г/сут выше ожидаемого (' + fmt(lo) + '–' + fmt(hi) + '): проверьте время сбора (больше 24 ч?) или высокую мышечную массу.');
+  }
+  if (vol != null && vol > 0) {
+    if (vol < 600) Q.push('Объём мочи ' + fmt(vol) + ' мл: олигурия или неполный сбор.');
+    else if (vol > 3500) Q.push('Объём мочи ' + fmt(vol) + ' мл: полиурия; проверьте сбор и водную нагрузку.');
+  }
+  const lowSig = ['OH2E1', 'MeO2E1', 'OH16E1'].filter(k => val(k) != null && val(k) < 0.5 && p.kind === 'ngmg');
+  if (lowSig.length) Q.push('Очень низкие значения (меньше 0,5 нг/мг) делают соотношения ориентировочными: воспроизводимость отдельных метаболитов снижается.');
+  F.quality = Q;
+
+  /* ---------- Chips ---------- */
+  const chips = [];
+  const chip = (title, cls, text) => chips.push('<div class="chip ' + cls + '"><b>' + title + '</b><span>' + text + '</span></div>');
+  if (val('E1') != null || val('E2') != null || RS.tot) {
+    if (F.hiLoad) chip('Эстрогенная нагрузка', 'alert', 'повышена' + (high('E2') ? ': E2 выше нормы' : high('E1') ? ': E1 выше нормы' : ''));
+    else if (F.loLoad) chip('Эстрогенная нагрузка', (stVal === 'pm' ? 'ok' : 'attn'), stVal === 'pm' ? 'низкая, соответствует постменопаузе' : 'снижена');
+    else chip('Эстрогенная нагрузка', 'ok', 'в пределах референса');
+  } else chip('Эстрогенная нагрузка', 'na', 'E1/E2 не введены');
+  if (R.r216 != null) chip('Баланс 2/16', F.low216 || F.hi16 ? 'alert' : 'ok', F.low216 ? '2/16 = ' + fmt(R.r216) + ', перевес 16α-пути' : F.hi16 ? '16α-OH повышен' : '2/16 = ' + fmt(R.r216));
+  else chip('Баланс 2/16', 'na', 'нет 2-OHE1 или 16α-OHE1');
+  if (o4 != null) chip('Путь 4-OH', F.hi4 ? 'alert' : 'ok', F.hi4 ? (R.r24 != null ? '2/4 = ' + fmt(R.r24) + ', 4-OH относительно высок' : '4-OH выше нормы') : 'без перевеса');
+  else chip('Путь 4-OH', 'na', '4-OHE1 не введён');
+  if (R.m2 != null || R.m4inv != null) chip('Метилирование (COMT)', F.lowMeth ? 'attn' : 'ok', F.lowMeth ? 'снижено' + (R.m2 != null ? ': 2-OMe/2-OH = ' + fmt(R.m2) : '') : 'достаточное');
+  else chip('Метилирование (COMT)', 'na', 'нет метокси-метаболитов');
+  if (val('PD') != null) chip('Прогестерон (прегнандиол)', F.loPD ? 'alert' : (S.PD === 'low' ? 'attn' : 'ok'), F.loPD ? 'низкий для лютеиновой фазы' : S.PD === 'low' ? 'ниже референса' : S.PD === 'high' ? 'выше референса' : 'в пределах референса');
+  if (F.quality.length) chip('Качество сбора', 'attn', 'есть замечания, см. рекомендации');
+  else if (crea != null || vol != null) chip('Качество сбора', 'ok', 'креатинин и объём правдоподобны');
+  $('chips').innerHTML = chips.join('');
+  const nAb = Object.values(S).filter(s => s === 'low' || s === 'high').length;
+  $('sumHint').textContent = filledE.length ? (nAb ? nAb + ' показ. вне референса' : 'все показатели в референсе') : '';
+
+  /* ---------- Banners ---------- */
+  const B = [];
+  if (ctx.cPreg) B.push('Беременность или лактация: референсы панелей не валидированы, профиль интерпретируется условно. DIM, I3C, кальций-D-глюкарат и ресвератрол не назначаются.');
+  if (ctx.cCancer || ctx.cTam) B.push('Гормонозависимый рак в анамнезе или антиэстрогенная терапия: любые нутрицевтики ниже только по согласованию с онкологом. В РКИ на фоне тамоксифена DIM повышал 2/16, но снижал концентрации активных метаболитов тамоксифена.');
+  if (ctx.cCOC) B.push('Гормональная контрацепция: синтетический этинилэстрадиол этими панелями не измеряется, собственные эстрогены подавлены. Сравнение с фазовыми референсами ориентировочное.');
+  if (stVal === 'pmhrt') B.push('Постменопауза на ЗГТ: использованы референсы лютеиновой фазы (как в DUTCH). Пероральные и трансдермальные эстрогены дают разный профиль метаболитов.');
+  if (stVal === 'male' && (pk === 'invitro24')) B.push('Для мужчин Инвитро не валидирует референсы. Введите референсы с бланка или выберите другую панель.');
+  if ((stVal === 'fol' || stVal === 'ov') && (pk === 'invitro24' || pk === 'gemo24' || pk === 'helix')) B.push('Для фолликулярной и овуляторной фазы лаборатории не дают референсов метаболитов. Соотношения считаются, но оценка уровней ограничена; предпочтителен сбор на 19–23 день цикла.');
+  $('banners').innerHTML = B.map(t => '<div class="banner">' + esc(t) + '</div>').join('');
+
+  /* ---------- Recommendations ---------- */
+  const recs = buildRecs({ F, R, RS, S, val, ctx, stVal, age, bmi, pk, r216def });
+  $('recs').innerHTML = recs.map(renderRec).join('');
+
+  /* ---------- Conclusion ---------- */
+  $('concl').value = buildConclusion({ F, R, RS, RR, S, val, ctx, stVal, age, bmi, pk, recs, r216def, crea, vol, B });
+
+  /* ---------- Conversion ---------- */
+  buildConversion(crea, pk);
+}
+
+/* ---------- Recommendation library ---------- */
+function li(text, ev) { return { t: text, ev: ev || '' }; }
+function buildRecs(c) {
+  const { F, R, RS, S, val, ctx, stVal, bmi, pk } = c;
+  const recs = [];
+  const noSupp = ctx.cPreg;
+  const oncoNote = (ctx.cCancer || ctx.cTam) ? 'Назначение нутрицевтиков согласовать с онкологом.' : '';
+  const male = stVal === 'male';
+
+  if (F.quality.length) recs.push({
+    sev: 'alert', title: 'Проверить качество сбора', why: F.quality.join(' '),
+    blocks: [['Что сделать', [li('Уточнить время начала и конца сбора, пропущенные порции, консервант и хранение при +2…+8 °C.', 'практ.'), li('При неполном сбое оценивать в первую очередь соотношения: они меньше зависят от объёма, чем абсолютные значения.', 'практ.'), li('При сомнениях повторить сбор в ту же фазу цикла.', 'практ.')]]]
+  });
+
+  if (F.low216 || F.hi16) {
+    const why = [];
+    if (R.r216 != null) why.push('2/16 = ' + fmt(R.r216) + (RS.r216 === 'low' ? ' (ниже референса панели)' : RS.r216 === 'edge2' ? ' (ниже клинического ориентира 2,0)' : ''));
+    if (S.OH16E1 === 'high') why.push('16α-OHE1 = ' + fmt(val('OH16E1')) + ' выше нормы');
+    if (RS.s16 === 'high') why.push('доля 16α-OH ' + fmt(R.s16) + ' %');
+    const supp = noSupp ? [li('Нутрицевтики при беременности и лактации не назначаются; только питание.', 'практ.')] : [
+      li('DIM 100–300 мг/сут (в РКИ 150 мг 2 раза в день повышал 2/16 за 12 мес.) или I3C 200–400 мг/сут. Не сочетать DIM и I3C. Курс 8–12 недель с контролем.', 'РКИ'),
+      li('Молотое льняное семя 10–25 г/сут: лигнаны сдвигают метаболизм в сторону 2-OH.', 'РКИ'),
+      li('Омега-3 (EPA+DHA) 1–2 г/сут при низком потреблении рыбы.', 'набл.')
+    ];
+    recs.push({
+      sev: 'alert', title: 'Сместить баланс в сторону 2-OH пути', why: why.join('; ') + '. Перевес 16α-OH связывают с пролиферацией в эстрогензависимых тканях' + (ctx.cHPV ? ', а также с персистенцией ВПЧ' : '') + '.',
+      blocks: [
+        ['Питание и образ жизни', [
+          li('Крестоцветные овощи 1–2 порции в день: брокколи, брюссельская и белокочанная капуста, кольраби, руккола.', 'РКИ'),
+          li((F.obese || F.over) ? 'Снижение массы тела: ИМТ ' + fmt(bmi) + ' кг/м², жировая ткань усиливает 16α-гидроксилирование и ароматизацию.' : 'Поддерживать нормальную массу тела и аэробную нагрузку 150+ мин/нед.', 'набл.'),
+          li('Алкоголь свести к минимуму.', 'набл.')
+        ]],
+        ['Нутрицевтики (ориентир)', supp],
+        ['Дообследование', [
+          li('ТТГ, свТ4: при гипотиреозе 2-гидроксилирование снижается.', 'набл.'),
+          ...(ctx.cHPV ? [li('Контроль ВПЧ-статуса и цитологии по плану гинеколога.', 'практ.')] : []),
+          li('Повтор панели через 8–12 недель в ту же фазу цикла и в той же лаборатории.', 'практ.')
+        ]]
+      ],
+      caution: [oncoNote, (!noSupp ? 'I3C и DIM индуцируют CYP1A2: учитывать взаимодействия (теофиллин, клозапин, оланзапин, кофеин).' : '')].filter(Boolean).join(' ')
+    });
+  }
+
+  if (F.hi4) {
+    const why = [];
+    if (S.OH4E1 === 'high') why.push('4-OHE1 = ' + fmt(val('OH4E1')) + ' выше нормы');
+    if (S.OH4E2 === 'high') why.push('4-OHE2 выше нормы');
+    if (RS.r24 === 'low') why.push('2/4 = ' + fmt(R.r24) + ' (ориентир от 5,4)');
+    if (RS.s4 === 'high') why.push('доля 4-OH ' + fmt(R.s4) + ' %');
+    recs.push({
+      sev: 'alert', title: 'Снизить нагрузку 4-OH пути и хинонов', why: why.join('; ') + '. 4-OH-катехолэстрогены окисляются в хиноны, образующие аддукты ДНК; их обезвреживают COMT (метилирование) и глутатион.',
+      blocks: [
+        ['Убрать индукторы CYP1B1', [
+          li('Курение, в том числе пассивное; пережаренное и копчёное мясо (ПАУ); алкоголь.', 'мех.'),
+          li('Меньше контакта с ксеноэстрогенами: нагрев пищи в пластике, бисфенолы, фталаты в косметике.', 'мех.')
+        ]],
+        ['Нутрицевтики (ориентир)', noSupp ? [li('При беременности и лактации не назначаются.', 'практ.')] : [
+          li('Сульфорафан (экстракт ростков брокколи с активной мирозиназой) 10–30 мг/сут: индукция NQO1 и глутатион-S-трансфераз.', 'мех.'),
+          li('N-ацетилцистеин 600–1200 мг/сут для пула глутатиона.', 'мех.'),
+          li('Ресвератрол 150–250 мг/сут: ингибирует CYP1B1 и образование аддуктов в экспериментах.', 'мех.'),
+          li('Поддержка метилирования, см. блок COMT ниже: без неё 4-OH не обезвреживается.', 'набл.')
+        ]],
+        ['Дообследование', [
+          li('Генотипирование по показаниям: CYP1B1 (L432V), COMT (Val158Met), GSTM1/GSTP1.', 'практ.'),
+          li(male ? 'УЗИ предстательной железы и ПСА по возрасту.' : 'Скрининг молочных желёз (УЗИ / маммография по возрасту) и УЗИ органов малого таза по национальной программе и анамнезу.', 'практ.')
+        ]]
+      ],
+      caution: oncoNote
+    });
+  }
+
+  if (F.lowMeth) {
+    const why = [];
+    if (RS.m2 === 'low') why.push('2-OMeE1/2-OHE1 = ' + fmt(R.m2));
+    if (RS.m2inv === 'high') why.push('2-OHE1/2-OMeE1 = ' + fmt(R.m2inv) + ' выше референса');
+    if (RS.m4inv === 'high') why.push('4-OHE1/4-OMeE1 = ' + fmt(R.m4inv) + ' выше референса');
+    if (S.MeO2E1 === 'low') why.push('2-OMeE1 ниже нормы');
+    recs.push({
+      sev: 'attn', title: 'Поддержать метилирование (COMT)', why: why.join('; ') + '. COMT переводит катехолэстрогены в неактивные метокси-формы; ей нужен SAMe и кофакторы фолатного цикла и магний.',
+      blocks: [
+        ['Дообследование', [
+          li('Гомоцистеин, витамин B12 (лучше голотранскобаламин), фолат, магний.', 'практ.'),
+          li('Генотип MTHFR C677T и COMT Val158Met по показаниям.', 'практ.')
+        ]],
+        ['Нутрицевтики (ориентир)', noSupp ? [li('При беременности: фолат в профилактической дозе по стандарту ведения беременности, остальное по акушеру.', 'практ.')] : [
+          li('Метилфолат 400–800 мкг/сут, метилкобаламин 500–1000 мкг/сут, P5P 25–50 мг/сут.', 'практ.'),
+          li('Магний (глицинат или цитрат) 200–400 мг элементарного магния в сутки.', 'практ.'),
+          li('Бетаин (TMG) 500–1500 мг/сут или холин из пищи (яйца) как донор метильных групп.', 'мех.')
+        ]],
+        ['Учесть конкуренцию за COMT', [
+          li('Высокие дозы кверцетина и экстракта зелёного чая (EGCG) ингибируют COMT.', 'мех.'),
+          li('Хронический стресс повышает нагрузку катехоламинами на тот же фермент: сон, восстановление.', 'мех.')
+        ]]
+      ],
+      caution: oncoNote
+    });
+  }
+
+  if (F.hiLoad) {
+    recs.push({
+      sev: 'alert', title: male ? 'Избыток эстрогенов у мужчины' : 'Снизить эстрогенную нагрузку',
+      why: ['E1', 'E2'].filter(k => S[k] === 'high').map(k => k + ' = ' + fmt(val(k)) + ' выше нормы').join('; ') + (R.tot != null && RS.tot === 'high' ? '; сумма эстрогенов ' + fmt(R.tot) : '') + '.',
+      blocks: [
+        ['Найти источник', male ? [
+          li('Общий и свободный тестостерон, ЛГ, ГСПГ, эстрадиол в сыворотке, пролактин, печёночные пробы.', 'практ.'),
+          li('Ароматизация в жировой ткани: окружность талии, HOMA-IR.', 'набл.'),
+          li('Анаболические стероиды, ХГЧ, алкоголь, препараты, влияющие на печень.', 'практ.')
+        ] : [
+          li('Исключить экзогенные эстрогены: ЗГТ, КОК, перенос геля от партнёра.', 'практ.'),
+          li('Оценить овуляцию и прогестерон (см. прегнандиол): эстрогены «без противовеса».', 'практ.'),
+          li('Ароматизация в жировой ткани и инсулинорезистентность: окружность талии, HOMA-IR.', 'набл.')
+        ]],
+        ['Выведение (фаза III)', noSupp ? [li('Клетчатка 25–35 г/сут, регулярный стул.', 'набл.')] : [
+          li('Клетчатка 30–40 г/сут, ежедневный стул: меньше энтерогепатической рециркуляции.', 'набл.'),
+          li('Кальций-D-глюкарат 500–1500 мг/сут: ингибирует β-глюкуронидазу кишечника.', 'мех.'),
+          li('Алкоголь ограничить: повышает уровни эстрогенов.', 'набл.')
+        ]],
+        ['Наблюдение', [li(male ? 'Осмотр на гинекомастию; ингибиторы ароматазы только по решению эндокринолога или уролога.' : 'УЗИ органов малого таза и молочных желёз при симптомах (мастодиния, обильные менструации, миома, гиперплазия).', 'практ.')]]
+      ],
+      caution: [oncoNote, ctx.cDIM ? 'DIM уже принимается: оценить дозу и длительность.' : ''].filter(Boolean).join(' ')
+    });
+  }
+
+  if (F.loLoad && stVal !== 'pm') {
+    recs.push({
+      sev: 'attn', title: 'Низкие эстрогены', why: 'E1/E2 ниже референса для выбранного статуса.',
+      blocks: [
+        ['Дообследование', male ? [li('Эстрадиол и тестостерон в сыворотке, ЛГ/ФСГ; низкий E2 у мужчин связан с потерей костной массы.', 'набл.')] : [
+          li('ФСГ, ЛГ, эстрадиол на 2–5 день цикла, АМГ, пролактин, ТТГ.', 'практ.'),
+          li('Энергодефицит у спортсменок (RED-S): калораж, нагрузка, менструальная функция.', 'набл.'),
+          li('Риск остеопении: витамин D, при длительной гипоэстрогении денситометрия.', 'практ.')
+        ]],
+        ['Что не делать', [li('Не назначать DIM, I3C и кальций-D-глюкарат: они дополнительно снижают эстрогены.', 'набл.')]]
+      ],
+      caution: ''
+    });
+  }
+  if (F.loLoad && stVal === 'pm') {
+    recs.push({ sev: 'info', title: 'Постменопаузальный профиль', why: 'Низкие исходные эстрогены ожидаемы в постменопаузе.', blocks: [['Что учесть', [li('При вазомоторных и урогенитальных симптомах обсудить МГТ с гинекологом.', 'практ.'), li('Костное здоровье: витамин D, белок, силовые тренировки, денситометрия по возрасту.', 'практ.')]]], caution: '' });
+  }
+
+  if (F.lo2 && !F.low216) {
+    recs.push({ sev: 'attn', title: 'Слабый 2-OH путь', why: '2-OHE1 = ' + fmt(val('OH2E1')) + ' ниже нормы при нормальных исходных эстрогенах: низкая активность CYP1A1.', blocks: [['Поддержка CYP1A1', [li('Крестоцветные овощи, лён, омега-3, аэробная нагрузка.', 'набл.'), li('Проверить ТТГ.', 'набл.'), ...(noSupp ? [] : [li('DIM или I3C курсом с контролем через 8–12 недель.', 'РКИ')])]]], caution: oncoNote });
+  }
+
+  if (F.lo16) {
+    recs.push({ sev: 'info', title: 'Низкий 16α-OHE1', why: '16α-OHE1 = ' + fmt(val('OH16E1')) + ' ниже нормы. 16α-OHE1 поддерживает костную ткань; низкие значения связывают с риском остеопороза.', blocks: [['Что учесть', [li('Не усиливать DIM/I3C без показаний: они снижают 16α-путь.', 'набл.'), li('Витамин D, кальций из пищи, белок, силовые нагрузки; денситометрия при факторах риска.', 'практ.')]]], caution: '' });
+  }
+
+  if (F.lowEQ && !F.low216) {
+    recs.push({ sev: 'info', title: 'Эстрогенный коэффициент ниже 1,0', why: 'E3/(E1+E2) = ' + fmt(R.eq) + ': преобладают активные E1 и E2 над более слабым E3.', blocks: [['Что учесть', [li('Интерпретировать вместе с 2/16 и нагрузкой E1/E2; как самостоятельный маркер риска индекс не валидирован.', 'набл.'), li('Те же меры, что для снижения нагрузки E1/E2: масса тела, клетчатка, алкоголь.', 'набл.')]]], caution: '' });
+  }
+
+  if (F.loPD) {
+    recs.push({
+      sev: 'alert', title: 'Недостаток прогестерона в лютеиновую фазу', why: 'Прегнандиол = ' + fmt(val('PD')) + ' ниже лютеинового референса' + (R.pde2 != null ? '; прегнандиол/E2 = ' + fmt(R.pde2) : '') + '. Возможна ановуляция или недостаточность лютеиновой фазы: относительный избыток эстрогенов.',
+      blocks: [
+        ['Дообследование', [
+          li('Проверить, совпал ли сбор с 19–23 днём при цикле 28 дней (или 7 днями после овуляции).', 'практ.'),
+          li('Прогестерон в сыворотке на 7-й день после овуляции, УЗИ-мониторинг овуляции, пролактин, ТТГ, АМГ.', 'практ.')
+        ]],
+        ['Факторы', [li('Стресс, энергодефицит, резкое снижение массы, перетренированность, СПКЯ.', 'набл.')]]
+      ],
+      caution: 'Гестагенную терапию назначает гинеколог по результатам дообследования.'
+    });
+  }
+
+  if (F.dimOver) {
+    recs.push({ sev: 'info', title: 'Возможная передозировка DIM/I3C', why: '2/16 выше верхней границы на фоне приёма DIM/I3C.', blocks: [['Что сделать', [li('Снизить дозу или сделать перерыв, особенно если E1/E2 низкие или есть приливы, сухость, снижение либидо.', 'практ.')]]], caution: '' });
+  }
+
+  // base layer
+  const anyIssue = recs.some(r => r.sev === 'alert' || r.sev === 'attn');
+  recs.push({
+    sev: anyIssue ? 'info' : 'ok', title: anyIssue ? 'Базовые меры для всех' : 'Профиль без значимых отклонений',
+    why: anyIssue ? 'Поддерживают все три фазы метаболизма эстрогенов.' : 'Показатели и индексы в пределах ориентиров. Коррекция не требуется.',
+    blocks: [['Поддерживать', [
+      li('Крестоцветные овощи ежедневно, клетчатка 25–35 г/сут, минимум алкоголя.', 'набл.'),
+      li('Нормальная масса тела, 150+ мин аэробной нагрузки и 2 силовые тренировки в неделю, сон 7–8 ч.', 'набл.'),
+      li(anyIssue ? 'Контроль панели через 8–12 недель после начала коррекции, в ту же фазу и в той же лаборатории.' : 'Повтор панели по клиническим показаниям; при приёме добавок для контроля через 3–6 мес.', 'практ.')
+    ]]],
+    caution: ''
+  });
+  if (ctx.cFam || ctx.cBenign) {
+    recs.push({ sev: 'info', title: 'Онконастороженность', why: (ctx.cFam ? 'Семейный анамнез РМЖ / рака яичников. ' : '') + (ctx.cBenign ? 'Эстрогензависимые доброкачественные заболевания.' : ''), blocks: [['Наблюдение', [
+      li('Маммологический скрининг по возрасту и национальной программе; при семейном анамнезе обсудить консультацию генетика (BRCA1/2).', 'практ.'),
+      li('Профиль метаболитов эстрогенов не заменяет визуализацию и онкоскрининг.', 'практ.')
+    ]]], caution: '' });
+  }
+  return recs;
+}
+function renderRec(r) {
+  const sev = { alert: 'alert', attn: '', info: 'info', ok: 'ok' }[r.sev] || '';
+  let h = '<article class="rec ' + sev + '"><h3>' + esc(r.title) + '</h3><div class="why">' + esc(r.why) + '</div>';
+  r.blocks.forEach(([t, items]) => {
+    if (!items.length) return;
+    h += '<h4>' + esc(t) + '</h4><ul>' + items.map(i => '<li>' + esc(i.t) + (i.ev ? '<span class="ev">' + esc(i.ev) + '</span>' : '') + '</li>').join('') + '</ul>';
+  });
+  if (r.caution) h += '<div class="caution">' + esc(r.caution) + '</div>';
+  return h + '</article>';
+}
+
+/* ---------- Conclusion ---------- */
+const STATUS_TXT = { fol: 'фолликулярная фаза', ov: 'овуляторная фаза', lut: 'лютеиновая фаза', pm: 'постменопауза без ЗГТ', pmhrt: 'постменопауза на ЗГТ', male: 'мужчина' };
+function buildConclusion(c) {
+  const { F, R, RS, RR, S, val, stVal, age, bmi, pk, recs, r216def, crea, vol, B } = c;
+  const p = PROFILES[pk];
+  const L = [];
+  const today = new Date();
+  L.push('МЕТАБОЛИТЫ ЭСТРОГЕНОВ: ИНТЕРПРЕТАЦИЯ (проект, ' + today.toLocaleDateString('ru-RU') + ')');
+  L.push('Панель: ' + p.label + '.');
+  L.push('Статус: ' + STATUS_TXT[stVal] + (age ? ', ' + age + ' лет' : '') + (bmi ? ', ИМТ ' + fmt(bmi) : '') + '.' + (vol ? ' Объём мочи ' + fmt(vol) + ' мл.' : '') + (crea ? ' Креатинин ' + fmt(crea) + ' г/сут.' : ''));
+  L.push('');
+  L.push('1. Результаты вне референса:');
+  const ab = ANALYTES.filter(a => S[a.k] === 'low' || S[a.k] === 'high');
+  if (ab.length) ab.forEach(a => L.push('   – ' + a.name + ' (' + a.code + '): ' + fmt(val(a.k)) + ' ' + p.unit + ', ' + (S[a.k] === 'low' ? 'ниже' : 'выше') + ' референса ' + fmtR(state.refs[a.k]) + '.'));
+  else L.push('   нет.');
+  L.push('');
+  L.push('2. Расчётные индексы:');
+  const rl = [];
+  if (R.r216 != null) rl.push('2/16 ' + (r216def === 'sum' ? '[(2-OHE1+2-OHE2)/16α-OHE1]' : '[2-OHE1/16α-OHE1]') + ' = ' + fmt(R.r216) + (RR.r216 ? ' (ориентир ' + fmtR(RR.r216) + ')' : ''));
+  if (R.r24 != null) rl.push('2/4 = ' + fmt(R.r24) + (RR.r24 ? ' (ориентир ' + fmtR(RR.r24) + ')' : ''));
+  if (R.s2 != null) rl.push('Доли фазы I: 2-OH ' + fmt(R.s2) + ' %, 4-OH ' + fmt(R.s4) + ' %, 16α-OH ' + fmt(R.s16) + ' %');
+  if (R.m2 != null) rl.push('2-OMeE1/2-OHE1 = ' + fmt(R.m2) + (RR.m2 ? ' (ориентир ' + fmtR(RR.m2) + ')' : ''));
+  if (R.m2inv != null && RR.m2inv) rl.push('2-OHE1/2-OMeE1 = ' + fmt(R.m2inv) + ' (ориентир ' + fmtR(RR.m2inv) + ')');
+  if (R.m4inv != null && RR.m4inv) rl.push('4-OHE1/4-OMeE1 = ' + fmt(R.m4inv) + ' (ориентир ' + fmtR(RR.m4inv) + ')');
+  if (R.eq != null) rl.push('E3/(E1+E2) = ' + fmt(R.eq) + ' (ориентир выше 1,0)');
+  if (R.hp != null) rl.push('2-путь/исходные = ' + fmt(R.hp));
+  rl.length ? rl.forEach(t => L.push('   – ' + t + '.')) : L.push('   недостаточно данных.');
+  L.push('');
+  L.push('3. Заключение по профилю:');
+  const concl = [];
+  if (F.hiLoad) concl.push('повышенная эстрогенная нагрузка');
+  if (F.loLoad) concl.push(stVal === 'pm' ? 'низкие исходные эстрогены, соответствуют постменопаузе' : 'сниженные исходные эстрогены');
+  if (F.low216 || F.hi16) concl.push('смещение фазы I в сторону 16α-гидроксилирования');
+  if (F.hi4) concl.push('относительный перевес 4-OH пути');
+  if (F.lo2 && !F.low216) concl.push('сниженное 2-гидроксилирование');
+  if (F.lowMeth) concl.push('сниженная активность метилирования (COMT)');
+  if (F.loPD) concl.push('низкий прегнандиол в лютеиновую фазу (вероятная недостаточность прогестерона)');
+  if (F.lowEQ) concl.push('эстрогенный коэффициент ниже 1,0');
+  L.push('   ' + (concl.length ? concl.join('; ') + '.' : 'клинически значимых отклонений метаболизма эстрогенов не выявлено.'));
+  if (F.quality.length) L.push('   Замечания к сбору: ' + F.quality.join(' '));
+  B.forEach(b => L.push('   Примечание: ' + b));
+  L.push('');
+  L.push('4. Рекомендовано:');
+  let n = 0;
+  recs.forEach(r => {
+    if (r.sev === 'ok') return;
+    L.push('   ' + (++n) + ') ' + r.title + '.');
+    r.blocks.forEach(([t, items]) => items.forEach(i => L.push('      • ' + i.t)));
+    if (r.caution) L.push('      ! ' + r.caution);
+  });
+  if (!n) L.push('   поддерживающие меры по образу жизни; повтор по показаниям.');
+  L.push('');
+  L.push('Интерпретация носит вспомогательный характер, референсы зависят от метода и лаборатории. Решение о назначениях принимает лечащий врач.');
+  return L.join('\n');
+}
+
+/* ---------- Unit conversion ---------- */
+function buildConversion(crea, pk) {
+  const p = PROFILES[pk];
+  const box = $('convBox');
+  const filled = ANALYTES.filter(a => state.values[a.k] != null);
+  if (!crea || !filled.length || p.kind === 'custom') { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const rows = filled.map(a => {
+    const v = state.values[a.k];
+    let ug24, ugg, nm;
+    if (p.kind === 'ug24') { ug24 = v; ugg = v / crea; }
+    else if (p.kind === 'ngmg') { ugg = v; ug24 = v * crea; }
+    else if (p.kind === 'nmol') { ugg = v * a.mw / CREAT_MW; ug24 = ugg * crea; }
+    nm = ugg * CREAT_MW / a.mw;
+    return '<tr><td>' + esc(a.name) + ' <small style="color:var(--muted)">' + esc(a.code) + '</small></td><td class="num">' + fmt(ug24) + '</td><td class="num">' + fmt(ugg) + '</td><td class="num">' + fmt(nm) + '</td></tr>';
+  });
+  $('tblConv').querySelector('tbody').innerHTML = rows.join('');
+}
+
+/* ---------- Wiring ---------- */
+function onProfileOrStatus() {
+  loadRefs(); buildTable();
+  $('profileNote').textContent = profile().note;
+  compute();
+}
+function loadExample() {
+  const ex = EXAMPLE;
+  $('profile').value = ex.profile; $('status').value = ex.status;
+  $('age').value = ex.age; $('bmi').value = ex.bmi; $('vol').value = ex.vol; $('crea').value = ex.crea;
+  ['cCancer', 'cTam', 'cPreg', 'cCOC', 'cDIM', 'cHPV', 'cBenign', 'cFam'].forEach(id => { $(id).checked = !!ex.ctx[id]; });
+  state.values = Object.assign({}, ex.values);
+  $('exampleTag').classList.remove('hidden');
+  onProfileOrStatus();
+}
+function init() {
+  buildProfileSelect();
+  $('profile').addEventListener('change', () => { state.values = {}; $('exampleTag').classList.add('hidden'); onProfileOrStatus(); });
+  $('status').addEventListener('change', onProfileOrStatus);
+  $('showAll').addEventListener('change', () => { buildTable(); compute(); });
+  ['age', 'bmi', 'vol', 'crea'].forEach(id => $(id).addEventListener('input', compute));
+  ['cCancer', 'cTam', 'cPreg', 'cCOC', 'cDIM', 'cHPV', 'cBenign', 'cFam'].forEach(id => $(id).addEventListener('change', compute));
+  $('btnExample').addEventListener('click', loadExample);
+  $('btnClear').addEventListener('click', () => { state.values = {}; ['age', 'bmi', 'vol', 'crea'].forEach(id => $(id).value = ''); $('exampleTag').classList.add('hidden'); buildTable(); compute(); });
+  $('btnCopy').addEventListener('click', async () => {
+    const ta = $('concl');
+    try { await navigator.clipboard.writeText(ta.value); $('copyMsg').textContent = 'Скопировано'; }
+    catch (e) { ta.focus(); ta.select(); $('copyMsg').textContent = 'Текст выделен: нажмите Ctrl+C / ⌘C'; }
+    setTimeout(() => { $('copyMsg').textContent = ''; }, 3000);
+  });
+  loadExample();
+}
+
+/* ---------- PDF / photo import UI ---------- */
+const IMP_LABELS = Object.assign({}, Object.fromEntries(ANALYTES.map(a => [a.k, a.name + ' (' + a.code + ')'])), { CREA: 'Креатинин, г/сут', VOL: 'Объём суточной мочи, мл' });
+let impData = null;
+function impSetStatus(msg, kind) {
+  const el = $('impStatus');
+  el.classList.remove('hidden', 'err');
+  if (kind === 'err') el.classList.add('err');
+  el.innerHTML = (kind === 'busy' ? '<span class="spin" aria-hidden="true"></span>' : '') + '<span>' + esc(msg) + '</span>';
+}
+function impOdd(k, f) {
+  if (k === 'CREA') return f.value < 0.2 || f.value > 4;
+  if (k === 'VOL') return f.value < 200 || f.value > 6000;
+  const fmtKey = $('impProfile').value || impData.format, st = $('impStatusSel').value === 'pmhrt' ? 'lut' : $('impStatusSel').value;
+  const r = f.ref || ((PROFILES[fmtKey] && PROFILES[fmtKey].ranges[st]) || {})[k] || ((PROFILES[fmtKey] && PROFILES[fmtKey].ranges.lut) || {})[k];
+  if (!r) return false;
+  const hi = r[1], lo = r[0];
+  return (hi != null && hi > 0 && f.value > hi * 8) || (lo != null && lo > 0 && f.value < lo / 8);
+}
+function impWarn(k, f) {
+  const msgs = [];
+  if (f.conf === 'check') msgs.push('распознано по-разному: ' + fmt(f.value) + ' или ' + fmt(f.alt));
+  if (impOdd(k, f)) msgs.push('необычное значение, сверьте с бланком (запятая?)');
+  return msgs.length ? '<small style="display:block;color:var(--warn);font-weight:600">' + esc(msgs.join('; ')) + '</small>' : '';
+}
+function impRender() {
+  const d = impData; if (!d) return;
+  const keys = ANALYTES.map(a => a.k).concat(['CREA', 'VOL']).filter(k => d.found[k]);
+  const sel = $('impProfile');
+  sel.innerHTML = Object.entries(PROFILES).map(([k, p]) => '<option value="' + k + '">' + esc(p.label) + '</option>').join('');
+  sel.value = d.format;
+  $('impStatusSel').value = d.patient.sex === 'male' ? 'male' : ($('status').value === 'male' && d.patient.sex === 'female' ? 'lut' : $('status').value);
+  $('impMeta').innerHTML = '<span>Файл: <b>' + esc(d.fileName) + '</b></span><span>Способ: ' + esc(d.method) + '</span><span>Найдено показателей: <b>' + keys.filter(k => k !== 'CREA' && k !== 'VOL').length + '</b></span>' + (d.ocr ? '<span style="color:var(--warn)">Распознано с изображения: сверьте каждое значение с бланком</span>' : '') +
+    (d.patient.sex ? '<span>Пол: ' + (d.patient.sex === 'male' ? 'мужской' : 'женский') + '</span>' : '') + (d.patient.age ? '<span>Возраст: ' + d.patient.age + '</span>' : '');
+  $('impRows').innerHTML = keys.length ? keys.map(k => {
+    const f = d.found[k];
+    return '<tr><td><input type="checkbox" id="impOn_' + k + '" checked style="accent-color:var(--accent);" aria-label="Взять ' + esc(IMP_LABELS[k]) + '"></td>' +
+      '<td>' + esc(IMP_LABELS[k]) + (f.unitNote ? '<small style="display:block;color:var(--muted)">' + esc(f.unitNote) + '</small>' : '') + impWarn(k, f) + '</td>' +
+      '<td><input class="v" id="impV_' + k + '" inputmode="decimal" value="' + String(+f.value.toFixed(k === 'CREA' ? 2 : 4)).replace('.', ',') + '"' + (f.conf === 'check' || impOdd(k, f) ? ' style="border-color:var(--warn); background:var(--warn-soft)"' : '') + '>' + (f.qual ? ' <small title="на бланке со знаком">' + esc(f.qual) + '</small>' : '') + '</td>' +
+      '<td class="num refcell">' + (f.ref ? fmtR(f.ref) : '—') + '</td>' +
+      '<td class="src">' + esc(f.src) + '</td></tr>';
+  }).join('') : '<tr><td colspan="5" style="color:var(--muted)">Показатели не найдены. Откройте распознанный текст ниже: если он пустой или искажён, попробуйте файл лучшего качества или введите значения вручную.</td></tr>';
+  $('impText').value = d.text;
+  $('impReview').classList.remove('hidden');
+}
+async function impHandle(file) {
+  if (!file) return;
+  if (!window.LabImport) { impSetStatus('Модуль импорта не загрузился. Обновите страницу.', 'err'); return; }
+  $('impReview').classList.add('hidden');
+  impSetStatus('Открываю файл…', 'busy');
+  try {
+    const st = $('status').value === 'pmhrt' ? 'lut' : $('status').value;
+    const res = await window.LabImport.readFile(file, st, m => impSetStatus(m, 'busy'));
+    res.fileName = file.name;
+    impData = res;
+    const n = Object.keys(res.found).filter(k => k !== 'CREA' && k !== 'VOL').length;
+    impSetStatus(n ? 'Готово: найдено ' + n + ' показ. Проверьте значения и нажмите «Подставить в калькулятор».' : 'Показатели не найдены автоматически.', n ? '' : 'err');
+    impRender();
+  } catch (e) {
+    console.error(e);
+    const msg = (e && e.message) ? e.message : String(e);
+    impSetStatus('Не удалось прочитать файл: ' + msg + (/password|пароль/i.test(msg) ? '. PDF защищён паролем: сохраните его без пароля.' : '.'), 'err');
+  }
+}
+function impApply() {
+  const d = impData; if (!d) return;
+  const pk = $('impProfile').value;
+  $('profile').value = pk;
+  $('status').value = $('impStatusSel').value;
+  if (d.patient.age) $('age').value = d.patient.age;
+  $('crea').value = ''; $('vol').value = '';
+  const vals = {}; const refs = {};
+  Object.keys(d.found).forEach(k => {
+    const on = $('impOn_' + k); if (!on || !on.checked) return;
+    const v = parseNum($('impV_' + k).value); if (v == null) return;
+    if (k === 'CREA') { $('crea').value = +v.toFixed(3); return; }
+    if (k === 'VOL') { $('vol').value = Math.round(v); return; }
+    vals[k] = v; if (d.found[k].ref) refs[k] = d.found[k].ref.slice();
+  });
+  state.values = vals;
+  loadRefs();
+  if ($('impUseRefs').checked) Object.entries(refs).forEach(([k, r]) => { state.refs[k] = r; });
+  $('exampleTag').classList.add('hidden');
+  buildTable();
+  $('profileNote').textContent = profile().note;
+  compute();
+  $('impReview').classList.add('hidden');
+  impSetStatus('Значения из «' + d.fileName + '» подставлены. Проверьте фазу цикла и клинический контекст.', '');
+  $('h-input').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function impInit() {
+  const drop = $('drop'), inp = $('impFile');
+  inp.addEventListener('change', () => { impHandle(inp.files[0]); inp.value = ''; });
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => { const f = e.dataTransfer && e.dataTransfer.files[0]; impHandle(f); });
+  document.addEventListener('paste', e => { const it = [...(e.clipboardData ? e.clipboardData.files : [])][0]; if (it) impHandle(it); });
+  $('impApply').addEventListener('click', impApply);
+  ['impProfile', 'impStatusSel'].forEach(id => $(id).addEventListener('change', () => { const pv = $('impProfile').value, sv = $('impStatusSel').value; impData.format = pv; impRender(); $('impStatusSel').value = sv; }));
+  $('impCancel').addEventListener('click', () => { $('impReview').classList.add('hidden'); $('impStatus').classList.add('hidden'); impData = null; });
+}
+window.__calc = { PROFILES, classify, buildRecs };
+init();
+impInit();
+})();
+</script>
+</body>
+</html>
