@@ -172,6 +172,19 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
   #impGenTable td:nth-child(4) { grid-area: st; }
   #impGenTable td:nth-child(5) { grid-area: src; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
 }
+
+.tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-top: -6px; }
+.tab { padding: 10px 18px; font-family: var(--font-display); font-weight: 600; font-size: 16px; color: var(--muted); text-decoration: none; border: 1px solid transparent; border-bottom: 0; border-radius: 8px 8px 0 0; margin-bottom: -1px; }
+.tab:hover { color: var(--accent); }
+.tab.active { color: var(--accent); background: var(--card); border-color: var(--line); border-bottom: 1px solid var(--card); }
+.tabpane { display: grid; gap: 20px; }
+.schema-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
+#schemaBox svg { display: block; width: 100%; height: auto; min-width: 1000px; }
+@media (max-width: 640px) {
+  .tab { padding: 9px 14px; font-size: 15px; }
+  .tabpane { gap: 14px; }
+  #schemaBox svg { min-width: 1100px; }
+}
 /* ---------- Mobile ---------- */
 .recs { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
 @media (max-width: 640px) {
@@ -235,6 +248,13 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
 <header class="top">
   <h1>Калькулятор метаболитов эстрогенов</h1>
 </header>
+
+<nav class="tabs" role="tablist" aria-label="Разделы">
+  <a href="#calc" role="tab" id="tabBtnCalc" class="tab active" aria-selected="true">Калькулятор</a>
+  <a href="#schema" role="tab" id="tabBtnSchema" class="tab" aria-selected="false">Схема</a>
+</nav>
+
+<div id="tabCalc" class="tabpane">
 
 <div class="grid">
   <!-- LEFT: protocol -->
@@ -408,7 +428,24 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
 
 </div>
 
+<div id="tabSchema" class="tabpane hidden">
+  <section class="card" aria-labelledby="h-schema">
+    <header><h2 id="h-schema">Схема стероидогенеза пациента</h2>
+      <div class="btns"><button class="btn primary" type="button" id="btnPng">Скачать PNG</button><button class="btn primary" type="button" id="btnPdf">Скачать PDF</button></div>
+    </header>
+    <div class="controls">
+      <label class="f" for="scFio">ФИО пациента<input id="scFio" type="text" autocomplete="off" placeholder="Фамилия Имя Отчество"></label>
+      <label class="f" for="scDate">Дата анализа<input id="scDate" type="date"></label>
+      <label class="f" for="scDoc">Врач (необязательно)<input id="scDoc" type="text" autocomplete="off"></label>
+    </div>
+    <div id="scMsg" role="status" aria-live="polite" style="font-size:13px;"></div>
+    <div class="schema-scroll"><div id="schemaBox"></div></div>
+  </section>
+</div>
+</div>
+
 <script src="genes.js"></script>
+<script src="schema.js"></script>
 <script src="importer.js"></script>
 <script>
 (function () {
@@ -844,6 +881,10 @@ function compute() {
 
   /* ---------- Conversion ---------- */
   buildConversion(crea, pk);
+
+  /* ---------- Schema ---------- */
+  state.last = { F, R, RS, S, vals: Object.assign({}, state.values), stVal, pk, bmi, findings: findingsList(F, R, stVal, bmi) };
+  if (window.Schema && !$('tabSchema').classList.contains('hidden')) window.Schema.render();
 }
 
 /* ---------- Recommendation library ---------- */
@@ -1038,6 +1079,21 @@ function buildRecs(c) {
     ]]], caution: '' });
   }
   return recs;
+}
+function findingsList(F, R, stVal, bmi) {
+  const out = [];
+  if (F.hiLoad) out.push('Повышенная эстрогенная нагрузка (E1/E2 выше референса).');
+  if (F.loLoad && stVal !== 'pm') out.push('Сниженные исходные эстрогены.');
+  if (F.low216 || F.hi16) out.push('Смещение фазы I в сторону 16α-гидроксилирования' + (R.r216 != null ? ': 2/16 = ' + fmt(R.r216) : '') + '.');
+  if (F.hi4) out.push('Относительный перевес 4-OH пути' + (R.r24 != null ? ': 2/4 = ' + fmt(R.r24) : '') + '; риск образования хинонов.');
+  if (F.lo2 && !F.low216) out.push('Ослабленное 2-гидроксилирование.');
+  if (F.lowMeth) out.push('Сниженное метилирование катехолэстрогенов (COMT)' + (R.m2 != null ? ': 2-OMe/2-OH = ' + fmt(R.m2) : '') + '.');
+  if (F.loPD) out.push('Низкий прегнандиол в лютеиновую фазу: вероятная недостаточность прогестерона.');
+  if (F.lowEQ && !F.low216) out.push('Эстрогенный коэффициент E3/(E1+E2) ниже 1,0.');
+  geneCombos(state.genes, bmi).forEach(t => out.push(t.split(':')[0] + ': ' + t.split(':').slice(1).join(':').split('.')[0].trim() + '.'));
+  const risk = GC.filter(v => state.genes[v.id] >= 1).map(v => v.gene).filter((x, i, a) => a.indexOf(x) === i);
+  if (risk.length) out.push('Варианты риска в генах: ' + risk.join(', ') + '.');
+  return out;
 }
 /* ---------- Genetics recommendations ---------- */
 function geneCombos(G, bmi) {
@@ -1420,9 +1476,21 @@ function impInit() {
   ['impProfile', 'impStatusSel'].forEach(id => $(id).addEventListener('change', () => { const pv = $('impProfile').value, sv = $('impStatusSel').value; impData.format = pv; impRender(); $('impStatusSel').value = sv; }));
   $('impCancel').addEventListener('click', () => { $('impReview').classList.add('hidden'); $('impStatus').classList.add('hidden'); impData = null; });
 }
-window.__calc = { PROFILES, classify, buildRecs };
+window.__calc = { PROFILES, classify, buildRecs, state, GCI, gtOptions, fmt, geneCombos, STATUS_TXT };
+function showTab() {
+  const sch = location.hash === '#schema';
+  $('tabCalc').classList.toggle('hidden', sch); $('tabSchema').classList.toggle('hidden', !sch);
+  $('tabBtnCalc').classList.toggle('active', !sch); $('tabBtnSchema').classList.toggle('active', sch);
+  $('tabBtnCalc').setAttribute('aria-selected', String(!sch)); $('tabBtnSchema').setAttribute('aria-selected', String(sch));
+  if (sch && window.Schema) window.Schema.render();
+}
+window.addEventListener('hashchange', showTab);
+['scFio', 'scDate', 'scDoc'].forEach(id => $(id).addEventListener('input', () => window.Schema && window.Schema.render()));
+$('btnPng').addEventListener('click', () => window.Schema.exportPng());
+$('btnPdf').addEventListener('click', () => window.Schema.exportPdf());
 init();
 impInit();
+showTab();
 })();
 </script>
 </body>
