@@ -144,6 +144,62 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
 #impReview td.src { font-size: 12px; color: var(--muted); max-width: 300px; font-family: var(--font-mono); }
 #impReview input.v { width: 84px; }
 .imp-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px; color: var(--muted); align-items: center; }
+
+/* ---------- Mobile ---------- */
+.recs { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+@media (max-width: 640px) {
+  body { font-size: 15px; }
+  .wrap { padding: 14px 12px 48px; gap: 14px; }
+  .grid { gap: 14px; }
+  h1 { font-size: 23px; }
+  h2 { font-size: 18px; }
+  .card { padding: 14px; gap: 12px; }
+  .controls, .ctx { grid-template-columns: 1fr; }
+  label.f select, label.f input, input.v, input.r, textarea#concl { font-size: 16px; }
+  .btn { padding: 10px 14px; min-height: 42px; }
+  .ctx label { padding: 4px 0; }
+  .chips { grid-template-columns: 1fr 1fr; }
+  .chip { padding: 7px 8px; }
+  .chip b { font-size: 13px; }
+  .chip span { font-size: 12px; }
+  .drop { padding: 14px; }
+  /* input table → cards */
+  #tblIn thead, #tblRatio thead, #impReview thead { display: none; }
+  #tblIn, #tblIn tbody, #tblRatio, #tblRatio tbody, #impReview table, #impReview tbody { display: block; }
+  #tblIn tr.grp { display: block; }
+  #tblIn tr.grp td { display: block; padding: 10px 4px 6px; border-bottom: 0; }
+  #tblIn tr[data-k] { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "name name name" "val ref st" "bar bar bar"; gap: 6px 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  #tblIn tr[data-k] td { border: 0; padding: 0; }
+  #tblIn td.name { grid-area: name; min-width: 0; }
+  #tblIn td:nth-child(2) { grid-area: val; }
+  #tblIn td.refcell { grid-area: ref; white-space: nowrap; }
+  #tblIn td.st { grid-area: st; text-align: right; }
+  #tblIn td.br { grid-area: bar; }
+  #tblIn td.br .bar, #tblRatio .bar { width: 100%; }
+  #tblIn input.v { width: 100px; }
+  #tblIn input.r { width: 64px; }
+  #tblRatio tr { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "name name" "val pill" "ref ref" "bar bar"; gap: 4px 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  #tblRatio td { border: 0; padding: 0; }
+  #tblRatio td:nth-child(1) { grid-area: name; }
+  #tblRatio td:nth-child(2) { grid-area: val; font-size: 17px; }
+  #tblRatio td:nth-child(3) { grid-area: ref; white-space: normal; }
+  #tblRatio td:nth-child(4) { grid-area: pill; text-align: right; }
+  #tblRatio td:nth-child(5) { grid-area: bar; }
+  #tblRatio td[colspan] { grid-column: 1 / -1; }
+  #impReview tr { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "chk name" "chk val" "chk ref" "src src"; gap: 4px 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  #impReview td { border: 0; padding: 0; }
+  #impReview td:nth-child(1) { grid-area: chk; align-self: start; padding-top: 2px; }
+  #impReview td:nth-child(2) { grid-area: name; }
+  #impReview td:nth-child(3) { grid-area: val; }
+  #impReview td:nth-child(4) { grid-area: ref; }
+  #impReview td.src { grid-area: src; max-width: none; }
+  #impReview td[colspan] { grid-column: 1 / -1; }
+  .stack { height: 26px; }
+  .legend { font-size: 12px; gap: 4px 12px; }
+  .rec { padding: 14px; }
+  textarea#concl { min-height: 260px; font-size: 13px; }
+}
+@media (max-width: 360px) { .chips { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -178,7 +234,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
     </section>
 
     <section class="card" aria-labelledby="h-setup">
-      <header><h2 id="h-setup">1. Панель и пациент</h2><span class="hint">Референсы подставляются автоматически, их можно исправить по бланку</span></header>
+      <header><h2 id="h-setup">1. Панель и пациент</h2></header>
       <div class="controls">
         <label class="f" for="profile">Лаборатория / формат бланка
           <select id="profile"></select>
@@ -206,7 +262,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
           <input id="crea" type="number" min="0" step="0.01" inputmode="decimal">
         </label>
       </div>
-      <div class="note" id="profileNote"></div>
+      <div class="note hidden" id="profileNote"></div>
       <fieldset style="border:0; padding:0; margin:0; display:grid; gap:8px;">
         <legend style="font-size:13px; color:var(--muted); margin-bottom:6px;">Клинический контекст</legend>
         <div class="ctx">
@@ -259,7 +315,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
         <span style="--c: var(--p4)">4-OH (генотоксичный)</span>
         <span style="--c: var(--p16)">16α-OH (пролиферативный)</span>
       </div>
-      <div style="font-size:13px; color:var(--muted);" id="stackNote"></div>
+      <div class="hidden" id="stackNote"></div>
     </div>
     <div style="display:grid; gap:8px;">
       <h3>Расчётные соотношения</h3>
@@ -271,7 +327,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
 <section style="display:grid; gap:14px;" aria-labelledby="h-rec">
   <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">
     <h2 id="h-rec">4. Рекомендации</h2>
-    <span style="font-size:13px; color:var(--muted);">Метки доказательности: <span class="ev">РКИ</span> рандомизированные исследования по биомаркеру · <span class="ev">набл.</span> наблюдательные данные · <span class="ev">мех.</span> механистические / доклинические · <span class="ev">практ.</span> клиническая практика</span>
+    <span class="hidden">Метки доказательности: <span class="ev">РКИ</span> рандомизированные исследования по биомаркеру · <span class="ev">набл.</span> наблюдательные данные · <span class="ev">мех.</span> механистические / доклинические · <span class="ev">практ.</span> клиническая практика</span>
   </div>
   <div id="banners" style="display:grid; gap:8px;"></div>
   <div class="recs" id="recs"></div>
@@ -282,7 +338,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
   <textarea id="concl" aria-label="Текст заключения" spellcheck="false"></textarea>
 </section>
 
-<section class="card" aria-labelledby="h-meth">
+<section class="card hidden" aria-labelledby="h-meth">
   <header><h2 id="h-meth">Методика расчёта</h2></header>
   <div class="method">
     <div style="display:grid; gap:8px;">
@@ -892,7 +948,7 @@ function buildRecs(c) {
         ]],
         ['Факторы', [li('Стресс, энергодефицит, резкое снижение массы, перетренированность, СПКЯ.', 'набл.')]]
       ],
-      caution: 'Гестагенную терапию назначает гинеколог по результатам дообследования.'
+      caution: ''
     });
   }
 
@@ -925,7 +981,7 @@ function renderRec(r) {
   let h = '<article class="rec ' + sev + '"><h3>' + esc(r.title) + '</h3><div class="why">' + esc(r.why) + '</div>';
   r.blocks.forEach(([t, items]) => {
     if (!items.length) return;
-    h += '<h4>' + esc(t) + '</h4><ul>' + items.map(i => '<li>' + esc(i.t) + (i.ev ? '<span class="ev">' + esc(i.ev) + '</span>' : '') + '</li>').join('') + '</ul>';
+    h += '<h4>' + esc(t) + '</h4><ul>' + items.map(i => '<li>' + esc(i.t) + '</li>').join('') + '</ul>';
   });
   if (r.caution) h += '<div class="caution">' + esc(r.caution) + '</div>';
   return h + '</article>';
