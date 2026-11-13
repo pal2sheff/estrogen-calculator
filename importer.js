@@ -130,8 +130,11 @@ async function ocrImages(sources, onStatus, psm, prep) {
 const countFound = p => Object.keys(p.found).filter(k => k !== 'CREA' && k !== 'VOL').length;
 async function ocrAndParse(sources, status, onStatus) {
   // Two independent passes (layout-aware on the original, block mode on a binarized copy); disagreements are flagged.
-  const a = parseReport(await ocrImages(sources, onStatus, 4, false), status);
-  const b = parseReport(await ocrImages(sources, onStatus, 6, true), status);
+  const la = await ocrImages(sources, onStatus, 4, false), lb = await ocrImages(sources, onStatus, 6, true);
+  const a = parseReport(la, status), b = parseReport(lb, status);
+  const ga = parseGenetics(la), gb = parseGenetics(lb);
+  const genes = Object.assign({}, gb, ga);
+  Object.keys(genes).forEach(k => { if (ga[k] && gb[k] && ga[k].status !== gb[k].status) genes[k].conf = 'check'; });
   const keys = new Set([...Object.keys(a.found), ...Object.keys(b.found)]);
   const found = {};
   keys.forEach(k => {
@@ -144,7 +147,7 @@ async function ocrAndParse(sources, status, onStatus) {
       found[k] = Object.assign({}, pick, same ? { conf: 'ok' } : { conf: 'check', alt: (pick.value === x.value ? y : x).value });
     } else found[k] = Object.assign({}, x || y, { conf: 'single' });
   });
-  return { found, format: countFound(a) >= countFound(b) ? a.format : b.format, patient: Object.assign({}, b.patient, a.patient), text: a.text + '\n\n— второй проход —\n' + b.text, ocr: true };
+  return { found, genes, format: countFound(a) >= countFound(b) ? a.format : b.format, patient: Object.assign({}, b.patient, a.patient), text: a.text + '\n\n— второй проход —\n' + b.text, ocr: true };
 }
 function fileToImage(file) {
   return new Promise((res, rej) => {
@@ -332,6 +335,128 @@ function parseReport(lines, status) {
   return { found, format: detectFormat(text, found), patient: detectPatient(text), text };
 }
 
+
+/* ---------- Genetics parsing ---------- */
+const GENE_RE = /(?:^|[^a-z0-9])(cyp1a1|cyp1a2|cyp1b1|cyp19a1|cyp19a|cyp19|cyp17a1|cyp17a|cyp17|cyp3a4|comt|mthfr|mtrr|mtr|gstm1|gstm|gstt1|gstt|gstp1|nqo1|sult1a1|ugt1a1|esr1|esrα|esr-?alpha|pgr)(?![a-z0-9])/g;
+const GENE_ALIAS = { cyp19: 'CYP19A1', cyp19a: 'CYP19A1', cyp17: 'CYP17A1', cyp17a: 'CYP17A1', gstm: 'GSTM1', gstt: 'GSTT1', 'esrα': 'ESR1', 'esr-alpha': 'ESR1', esralpha: 'ESR1' };
+const COMP = { A: 'T', T: 'A', C: 'G', G: 'C' };
+const AA = 'Ile|Val|Leu|Met|Ala|Glu|Asp|Gly|Pro|Ser|Arg|His|A1|A2';
+function catalog() { return window.GENE_CATALOG || []; }
+function labInterp(seg) {
+  const t = seg.toLowerCase();
+  let m = /(norm|polym|mut)\s*\/\s*(norm|polym|mut)/.exec(t);
+  if (m) return (m[1] !== 'norm' ? 1 : 0) + (m[2] !== 'norm' ? 1 : 0);
+  if (/гетерозигот/.test(t)) return 1;
+  if (/гомозигот/.test(t)) return /норм|дик/.test(t) ? 0 : 2;
+  if (/отсутстви[ея] активности|отсутствует|null|нулев/.test(t)) return 2;
+  const up = (seg.match(/↑/g) || []).length, dn = (seg.match(/↓/g) || []).length;
+  if (up || dn) return Math.min(2, Math.max(up, dn));
+  if (/нормальн[а-я]* (?:активност|экспресси|чувствительност)|не связан с/.test(t)) return 0;
+  return null;
+}
+function countEff(g1, g2, ref, eff, notation) {
+  const S = [ref, eff];
+  const cnt = (a, b, e) => (a === e ? 1 : 0) + (b === e ? 1 : 0);
+  if (S.includes(g1) && S.includes(g2)) return cnt(g1, g2, eff);
+  const c1 = COMP[g1], c2 = COMP[g2];
+  if (S.includes(c1) && S.includes(c2)) return cnt(c1, c2, eff);
+  if (notation) { const [r2, e2] = notation; if ([r2, e2].includes(g1) && [r2, e2].includes(g2)) return cnt(g1, g2, e2); }
+  return null;
+}
+function genotypeFrom(seg, v) {
+  // returns { gt, status, how } or null
+  if (v.type === 'null') {
+    let m = /(del|ins|null|0|\+|-)\s*\/\s*(del|ins|null|0|\+|-)/i.exec(seg);
+    if (m) { const bad = x => /del|null|0|-/i.test(x); const n = (bad(m[1]) ? 1 : 0) + (bad(m[2]) ? 1 : 0); return { gt: m[0].replace(/\s+/g, ''), status: n, how: 'генотип' }; }
+    if (/делеци|null|нулев|отсутств/i.test(seg)) return { gt: 'Del/Del', status: 2, how: 'описание' };
+    if (/норм|присутств|ins\/ins|\+\/\+/i.test(seg)) return { gt: 'Ins/Ins', status: 0, how: 'описание' };
+    return null;
+  }
+  if (v.type === 'ta') {
+    const m = /\(?(?:ta\)?\s*)?(\*?1|\*?28|6|7)\s*\/\s*\(?(?:ta\)?\s*)?(\*?1|\*?28|6|7)(?![0-9])/i.exec(seg);
+    if (m) { const e = x => /28|7/.test(x); return { gt: m[1] + '/' + m[2], status: (e(m[1]) ? 1 : 0) + (e(m[2]) ? 1 : 0), how: 'генотип' }; }
+    const li = labInterp(seg); return li == null ? null : { gt: '?', status: li, how: 'интерпретация лаборатории' };
+  }
+  const notM = /(?:c\.|g\.)?-?\d+(?:[+-]\d+)?([ACGT])\s*>\s*([ACGT])/i.exec(seg);
+  const notation = notM ? [notM[1].toUpperCase(), notM[2].toUpperCase()] : null;
+  let ref = v.ref, eff = v.eff;
+  if (v.alleleBy) { const rs = (seg.match(/rs\s?\d+/i) || [''])[0].replace(/\s/g, '').toLowerCase(); if (v.alleleBy[rs]) [ref, eff] = v.alleleBy[rs]; else if (!rs || !v.alleleBy[rs]) { ref = null; eff = null; } }
+  // amino-acid / allele-name genotype
+  if (v.aa) {
+    const m = new RegExp('(?:^|[^A-Za-z])(' + AA + ')\\s*\\/\\s*(' + AA + ')(?![A-Za-z0-9])', 'i').exec(seg);
+    if (m) {
+      const norm = x => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase();
+      const a = norm(m[1]), b = norm(m[2]), [ra, ea] = v.aa.map(norm);
+      if ([ra, ea].includes(a) && [ra, ea].includes(b)) return { gt: a + '/' + b, status: (a === ea ? 1 : 0) + (b === ea ? 1 : 0), how: 'генотип' };
+    }
+  }
+  // nucleotide genotype: C/T, C\T, CT
+  let m = /(?:^|[^A-Za-z0-9>])([ACGT])\s*[\/\\|]\s*([ACGT])(?![A-Za-z0-9])/.exec(seg) || /(?:^|[\s|:;])([ACGT])([ACGT])(?=[\s|;,.]|$)/.exec(seg);
+  if (m && ref) {
+    const st = countEff(m[1], m[2], ref, eff, notation);
+    if (st != null) return { gt: m[1] + '/' + m[2], status: st, how: 'генотип' };
+  }
+  const li = labInterp(seg);
+  if (li != null) return { gt: m ? m[1] + '/' + m[2] : '?', status: li, how: 'интерпретация лаборатории' };
+  if (m) return { gt: m[1] + '/' + m[2], status: null, how: 'нужна проверка' };
+  return null;
+}
+function pickVariant(gene, seg) {
+  const vs = catalog().filter(v => v.gene === gene);
+  if (!vs.length) return null;
+  const rs = (seg.match(/rs\s?\d+/gi) || []).map(x => x.replace(/\s/g, '').toLowerCase());
+  let v = vs.find(x => (x.rs || []).some(r => rs.includes(r)));
+  if (v) return v;
+  if (rs.length && vs.length > 1) return null; // an rs we do not track
+  v = vs.find(x => x.hints && x.hints.test(seg));
+  if (v) return v;
+  if (vs.length === 1) return vs[0];
+  // several variants of one gene and no hints: decide by alleles present
+  const m = /([ACGT])\s*[\/\\]\s*([ACGT])/.exec(seg);
+  if (m) { v = vs.find(x => countEff(m[1], m[2], x.ref, x.eff, null) != null); if (v) return v; }
+  return null;
+}
+function parseGenetics(lines) {
+  const found = {};
+  const take = (v, r, src) => { if (!v || !r) return; const old = found[v.id]; if (old && !(old.gt === '?' && r.gt !== '?') && !(old.status == null && r.status != null)) return; found[v.id] = Object.assign(r, { src: src.trim().slice(0, 160) }); };
+  const cyr = { 'А': 'A', 'С': 'C', 'Т': 'T', 'а': 'a', 'с': 'c', 'т': 't' };
+  lines = lines.map(l => l.replace(/([АСТACGT])(\s*[\/>\\]\s*)([АСТACGT])/g, (x, a, sp, b) => (cyr[a] || a) + sp + (cyr[b] || b)));
+  lines.forEach((line, idx) => {
+    const low = line.toLowerCase();
+    // "Выявленный генотип A/A варианта c.1384A>G гена CYP1A1"
+    const sm = /генотип\s+(\S+)\s+(?:варианта|полиморфизма|маркера)\s+(.{0,60}?)\s*гена\s+([a-z0-9]+)/i.exec(line);
+    if (sm) {
+      const gname = sm[3].toUpperCase(); const gene = GENE_ALIAS[sm[3].toLowerCase()] || gname;
+      const v = pickVariant(gene, sm[2]);
+      if (v) take(v, genotypeFrom(sm[1] + ' ' + sm[2], v), line);
+    }
+    const hits = []; let m; GENE_RE.lastIndex = 0;
+    while ((m = GENE_RE.exec(low))) hits.push({ g: m[1], start: m.index + m[0].indexOf(m[1]), end: m.index + m[0].length });
+    // rows without a gene symbol but with a tracked rs number
+    if (!hits.length) {
+      const rsm = /rs\s?\d+/i.exec(line);
+      if (rsm) { const rs = rsm[0].replace(/\s/g, '').toLowerCase(); const v = catalog().find(x => (x.rs || []).includes(rs)); if (v) take(v, genotypeFrom(line.slice(rsm.index), v), line); }
+      return;
+    }
+    if (hits.length > 3) return; // a list of genes in running text
+    hits.forEach((h, i) => {
+      const gene = GENE_ALIAS[h.g] || h.g.toUpperCase();
+      let seg = line.slice(h.start, i + 1 < hits.length ? hits[i + 1].start : line.length);
+      const tryParse = () => { const v = pickVariant(gene, seg); return v ? { v, r: genotypeFrom(seg.slice(gene.length), v) } : null; };
+      let res = tryParse();
+      // table cells wrapped over several lines: look ahead until the next gene row
+      for (let j = 1; (!res || !res.r || res.r.gt === '?') && i === hits.length - 1 && j <= 3 && lines[idx + j]; j++) {
+        const nx = lines[idx + j]; GENE_RE.lastIndex = 0;
+        if (GENE_RE.test(nx.toLowerCase())) break;
+        seg += ' ' + nx; res = tryParse();
+      }
+      GENE_RE.lastIndex = 0;
+      if (res) take(res.v, res.r, seg);
+    });
+  });
+  return found;
+}
+
 /* ---------- Main entry ---------- */
 async function readFile(file, status, onStatus) {
   const isPdf = /pdf$/i.test(file.type) || /\.pdf$/i.test(file.name);
@@ -344,8 +469,9 @@ async function readFile(file, status, onStatus) {
     const res = await pdfToText(buf, onStatus);
     lines = res.lines; method = 'текстовый слой PDF';
     const parsed = parseReport(lines, status);
+    parsed.genes = parseGenetics(lines);
     const nFound = Object.keys(parsed.found).filter(k => k !== 'CREA' && k !== 'VOL').length;
-    if (nFound >= 2) return Object.assign(parsed, { method, pages: res.pages });
+    if (nFound >= 2 || Object.keys(parsed.genes).length >= 2) return Object.assign(parsed, { method, pages: res.pages });
     // Scanned PDF: no usable text layer
     onStatus('Текстового слоя нет или он неполный: распознаю как скан…');
     const canvases = await pdfPagesToCanvases(res.doc, 4);
@@ -357,5 +483,5 @@ async function readFile(file, status, onStatus) {
   catch (e) { throw new Error('распознавание изображений в этом окне не запустилось (' + (e.message || e) + '). Загрузите PDF из личного кабинета лаборатории или введите значения вручную'); }
 }
 
-window.LabImport = { readFile, parseReport, _findMatches: findMatches };
+window.LabImport = { readFile, parseReport, parseGenetics, _findMatches: findMatches };
 })();

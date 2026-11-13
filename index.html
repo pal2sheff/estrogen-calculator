@@ -145,6 +145,33 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
 #impReview input.v { width: 84px; }
 .imp-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px; color: var(--muted); align-items: center; }
 
+
+.genes { display: grid; gap: 4px; }
+.gene-grp { font-family: var(--font-display); font-weight: 600; font-size: 13px; color: var(--muted); background: var(--paper); padding: 6px 8px; border-radius: 4px; margin-top: 8px; }
+.gene-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 240px); gap: 4px 12px; align-items: center; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.gene-row label b { font-weight: 600; font-size: 14px; }
+.gene-row label small { display: block; color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+.gene-row select { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-size: 14px; }
+.gene-row select.risk1 { border-color: var(--warn); background: var(--warn-soft); }
+.gene-row select.risk2 { border-color: var(--bad); background: var(--bad-soft); }
+.gene-eff { grid-column: 1 / -1; font-size: 13px; }
+.gene-eff.r1 { color: var(--warn); }
+.gene-eff.r2 { color: var(--bad); font-weight: 600; }
+.gen-sum { font-size: 14px; color: var(--muted); }
+#impGenTable select { padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-size: 13px; max-width: 220px; }
+@media (max-width: 640px) {
+  .gene-row { grid-template-columns: 1fr; padding: 10px 2px; }
+  .gene-row select, #impGenTable select { font-size: 16px; max-width: none; }
+  #impGenTable thead { display: none; }
+  #impGenTable, #impGenTable tbody { display: block; }
+  #impGenTable tr { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "chk name" "chk gt" "chk st" "src src"; gap: 4px 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  #impGenTable td { border: 0; padding: 0; }
+  #impGenTable td:nth-child(1) { grid-area: chk; }
+  #impGenTable td:nth-child(2) { grid-area: name; }
+  #impGenTable td:nth-child(3) { grid-area: gt; }
+  #impGenTable td:nth-child(4) { grid-area: st; }
+  #impGenTable td:nth-child(5) { grid-area: src; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+}
 /* ---------- Mobile ---------- */
 .recs { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
 @media (max-width: 640px) {
@@ -221,6 +248,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
       <div class="imp-status hidden" id="impStatus" role="status" aria-live="polite"></div>
       <div id="impReview" class="hidden" style="display:grid; gap:10px;">
         <div class="imp-meta" id="impMeta"></div>
+        <div id="impMetBlock" style="display:grid; gap:10px;">
         <div class="controls">
           <label class="f" for="impProfile">Формат бланка (определён автоматически)<select id="impProfile"></select></label>
           <label class="f" for="impStatusSel">Статус пациента<select id="impStatusSel">
@@ -228,6 +256,11 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
         </div>
         <div class="tablewrap"><table><thead><tr><th><span class="hidden">Взять</span></th><th>Показатель</th><th>Найдено</th><th>Референс с бланка</th><th>Строка в документе</th></tr></thead><tbody id="impRows"></tbody></table></div>
         <label style="display:flex; gap:8px; font-size:14px; align-items:center;"><input type="checkbox" id="impUseRefs" checked style="accent-color:var(--accent);"> Использовать референсы с бланка вместо встроенных</label>
+        </div>
+        <div id="impGenBlock" class="hidden" style="display:grid; gap:8px;">
+          <h3>Генотипы</h3>
+          <div class="tablewrap"><table id="impGenTable"><thead><tr><th><span class="hidden">Взять</span></th><th>Вариант</th><th>На бланке</th><th>Оценка</th><th>Строка в документе</th></tr></thead><tbody id="impGenRows"></tbody></table></div>
+        </div>
         <div class="btns"><button class="btn primary" type="button" id="impApply">Подставить в калькулятор</button><button class="btn" type="button" id="impCancel">Отмена</button></div>
         <details><summary style="cursor:pointer; font-size:13px; color:var(--muted);">Показать распознанный текст</summary><textarea id="impText" readonly style="width:100%; min-height:200px; margin-top:8px; font-family:var(--font-mono); font-size:12px; background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:8px;"></textarea></details>
       </div>
@@ -301,6 +334,14 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
         <p style="font-size:13px; color:var(--muted); margin:8px 0 0;">Пересчёт точен арифметически, но референсы разных методов (суточная моча ГХ-МС, разовая порция ВЭЖХ-МС, высушенная моча DUTCH) напрямую не переносятся. Сравнивайте с референсами той лаборатории, где выполнен анализ.</p>
       </details>
     </section>
+
+    <section class="card" aria-labelledby="h-gen">
+      <header><h2 id="h-gen">Генетика ферментов биотрансформации</h2>
+        <div class="btns"><label class="btn" for="impFile2" style="cursor:pointer;">Загрузить PDF генетики</label><input type="file" id="impFile2" accept="application/pdf,.pdf,image/*" class="hidden"><button class="btn" type="button" id="btnGenClear">Сбросить</button></div>
+      </header>
+      <div id="genSum" class="gen-sum"></div>
+      <div id="geneList" class="genes"></div>
+    </section>
   </div>
 
   <!-- RIGHT: interpretation -->
@@ -367,6 +408,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
 
 </div>
 
+<script src="genes.js"></script>
 <script src="importer.js"></script>
 <script>
 (function () {
@@ -483,6 +525,7 @@ const GENERIC = {
   m2: { r: [0.39, 0.67], src: 'ориентир DUTCH' }
 };
 
+const EXAMPLE_GENES = { COMT: 2, CYP1B1: 1, GSTM1: 2, MTHFR677: 1, CYP1A1_462: 0, GSTT1: 0, CYP19A1: 0 };
 const EXAMPLE = {
   profile: 'invitro24', status: 'lut', age: 38, bmi: 29.4, vol: 1650, crea: 1.15,
   ctx: { cBenign: true },
@@ -550,7 +593,18 @@ function bar(v, r) {
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /* ---------- State ---------- */
-const state = { refs: {}, values: {} };
+const state = { refs: {}, values: {}, genes: {} };
+const GC = window.GENE_CATALOG || [];
+const GCI = Object.fromEntries(GC.map(v => [v.id, v]));
+function gtOptions(v) {
+  if (v.type === 'null') return ['Ins/Ins · ген есть', 'Ins/Del · одна копия', 'Del/Del · делеция (null)'];
+  if (v.type === 'ta') return ['*1/*1 (6/6) · норма', '*1/*28 (6/7) · гетерозигота', '*28/*28 (7/7) · гомозигота'];
+  if (v.alleleBy) return ['без варианта риска · норма', 'гетерозигота по варианту риска', 'гомозигота по варианту риска'];
+  const r = v.ref, e = v.eff, a = v.aa;
+  const aa = (x, y) => a ? ' (' + x + '/' + y + ')' : '';
+  return [r + '/' + r + aa(a && a[0], a && a[0]) + ' · норма', r + '/' + e + aa(a && a[0], a && a[1]) + ' · гетерозигота', e + '/' + e + aa(a && a[1], a && a[1]) + ' · гомозигота'];
+}
+const gtText = id => { const n = state.genes[id]; return n == null ? 'не исследовано' : gtOptions(GCI[id])[n]; };
 
 function statusKey() { const s = $('status').value; return s === 'pmhrt' ? 'lut' : s; }
 function isFemale() { return $('status').value !== 'male'; }
@@ -760,7 +814,14 @@ function compute() {
   if (val('PD') != null) chip('Прогестерон (прегнандиол)', F.loPD ? 'alert' : (S.PD === 'low' ? 'attn' : 'ok'), F.loPD ? 'низкий для лютеиновой фазы' : S.PD === 'low' ? 'ниже референса' : S.PD === 'high' ? 'выше референса' : 'в пределах референса');
   if (F.quality.length) chip('Качество сбора', 'attn', 'есть замечания, см. рекомендации');
   else if (crea != null || vol != null) chip('Качество сбора', 'ok', 'креатинин и объём правдоподобны');
+  {
+    const G = state.genes, tested = GC.filter(v => G[v.id] != null), risk = tested.filter(v => G[v.id] >= 1);
+    const combo = geneCombos(G, bmi).length;
+    if (!tested.length) chip('Генетика', 'na', 'генотипы не указаны');
+    else chip('Генетика', combo ? 'alert' : risk.length ? 'attn' : 'ok', risk.length ? risk.map(v => v.gene).filter((x, i, a) => a.indexOf(x) === i).join(', ') + (combo ? '; неблагоприятные сочетания' : '') : 'вариантов риска нет');
+  }
   $('chips').innerHTML = chips.join('');
+  geneSummary();
   const nAb = Object.values(S).filter(s => s === 'low' || s === 'high').length;
   $('sumHint').textContent = filledE.length ? (nAb ? nAb + ' показ. вне референса' : 'все показатели в референсе') : '';
 
@@ -775,11 +836,11 @@ function compute() {
   $('banners').innerHTML = B.map(t => '<div class="banner">' + esc(t) + '</div>').join('');
 
   /* ---------- Recommendations ---------- */
-  const recs = buildRecs({ F, R, RS, S, val, ctx, stVal, age, bmi, pk, r216def });
+  const recs = buildRecs({ F, R, RS, S, val, ctx, stVal, age, bmi, pk, r216def, G: state.genes });
   $('recs').innerHTML = recs.map(renderRec).join('');
 
   /* ---------- Conclusion ---------- */
-  $('concl').value = buildConclusion({ F, R, RS, RR, S, val, ctx, stVal, age, bmi, pk, recs, r216def, crea, vol, B });
+  $('concl').value = buildConclusion({ F, R, RS, RR, S, val, ctx, stVal, age, bmi, pk, recs, r216def, crea, vol, B, G: state.genes });
 
   /* ---------- Conversion ---------- */
   buildConversion(crea, pk);
@@ -956,6 +1017,8 @@ function buildRecs(c) {
     recs.push({ sev: 'info', title: 'Возможная передозировка DIM/I3C', why: '2/16 выше верхней границы на фоне приёма DIM/I3C.', blocks: [['Что сделать', [li('Снизить дозу или сделать перерыв, особенно если E1/E2 низкие или есть приливы, сухость, снижение либидо.', 'практ.')]]], caution: '' });
   }
 
+  recs.push(...buildGeneRecs(c));
+
   // base layer
   const anyIssue = recs.some(r => r.sev === 'alert' || r.sev === 'attn');
   recs.push({
@@ -975,6 +1038,98 @@ function buildRecs(c) {
     ]]], caution: '' });
   }
   return recs;
+}
+/* ---------- Genetics recommendations ---------- */
+function geneCombos(G, bmi) {
+  const ge = (id, n) => G[id] != null && G[id] >= (n || 1);
+  const out = [];
+  const gst = G.GSTM1 === 2 || G.GSTT1 === 2 || ge('GSTP1');
+  if (ge('CYP1B1') && ge('COMT') && (gst || ge('NQO1'))) out.push('CYP1B1 + COMT + ' + (gst ? 'GST' : 'NQO1') + ': высокий генетический риск накопления 4-OH-хинонов. Все меры блоков «Фаза I» и «Метилирование» обязательны, профиль метаболитов в моче контролировать раз в 6 месяцев.');
+  if (ge('COMT') && (ge('MTHFR677') || G.MTHFR1298 === 2)) out.push('COMT + MTHFR: двойное ослабление метилирования катехолэстрогенов. Гомоцистеин держать ниже 10 мкмоль/л.');
+  if ((ge('CYP19A1') || ge('CYP17A1')) && bmi != null && bmi >= 30) out.push('Вариант ароматазы/CYP17A1 + ИМТ ' + fmt(bmi) + ': высокий риск избытка эстрогенов, снижение массы тела в приоритете.');
+  return out;
+}
+function buildGeneRecs(c) {
+  const { G, F, R, val, ctx, stVal, bmi } = c;
+  const out = [];
+  if (!G) return out;
+  const tested = GC.filter(v => G[v.id] != null);
+  if (!tested.length) return out;
+  const ge = (id, n) => G[id] != null && G[id] >= (n || 1);
+  const noSupp = ctx.cPreg;
+  const onco = (ctx.cCancer || ctx.cTam) ? 'Назначение нутрицевтиков согласовать с онкологом.' : '';
+  const line = id => GCI[id].label + ', ' + gtText(id).replace(' · ', ': ') + ' — ' + GCI[id].effect;
+  const pheno = (has, bad, okTxt, badTxt, noTxt) => !has ? noTxt : bad ? badTxt : okTxt;
+  const male = stVal === 'male';
+
+  // Phase I
+  const p1 = ['CYP1B1', 'CYP1A1_462', 'CYP1A1_MspI', 'CYP3A4'].filter(id => ge(id)).concat(G.CYP1A2 === 2 ? ['CYP1A2'] : []);
+  if (p1.length) {
+    const acts = [];
+    if (ge('CYP1B1')) acts.push(li('Исключить индукторы CYP1B1: курение, копчёное и пережаренное мясо, алкоголь.'), ...(noSupp ? [] : [li('Сульфорафан 10–30 мг/сут, ресвератрол 150–250 мг/сут.')]), li('Контроль 4-OHE1 и 2/4 в моче раз в 6–12 месяцев.'));
+    if (ge('CYP1A1_462') || ge('CYP1A1_MspI')) acts.push(li('Не курить: табачный дым сильно индуцирует CYP1A1.'), li('Поддерживать метилирование и глутатион, чтобы 2-OH катехолы не накапливались.'));
+    if (G.CYP1A2 === 2) acts.push(li('Крестоцветные, молотый лён' + (noSupp ? '' : ' и DIM/I3C') + ' особенно важны для 2-OH пути.'), li('Кофеин выводится медленно: не больше 1–2 чашек кофе в день; учитывать препараты-субстраты CYP1A2.'));
+    if (ge('CYP3A4')) acts.push(li('CYP3A4*1B: учитывать при назначении препаратов-субстратов CYP3A4.'));
+    const conf = (ge('CYP1B1') && F.hi4) || (G.CYP1A2 === 2 && (F.low216 || F.lo2));
+    const why = [pheno(val('OH4E1') != null || val('OH2E1') != null, conf,
+      'В моче фаза I сейчас без перевеса: меры профилактические.',
+      'Генотип реализуется: ' + (ge('CYP1B1') && F.hi4 ? '4-OH путь в моче повышен' : '2-OH путь в моче ослаблен') + '.',
+      'Сопоставьте с 2-OHE1 и 4-OHE1 в моче.')];
+    out.push({ sev: conf || G.CYP1B1 === 2 ? 'alert' : (p1.length === 1 && p1[0] === 'CYP3A4' ? 'info' : 'attn'), title: 'Генетика: фаза I (гидроксилирование)', why: why.join(' '), blocks: [['Генотип', p1.map(id => li(line(id)))], ['Что делать', acts]], caution: onco });
+  }
+
+  // Synthesis
+  const syn = ['CYP19A1', 'CYP17A1'].filter(id => ge(id));
+  if (syn.length) {
+    const acts = [li('Масса тела и окружность талии: ароматаза жировой ткани усиливает эффект генотипа' + (bmi != null && bmi >= 30 ? ' (ИМТ ' + fmt(bmi) + ')' : '') + '.'), li('Инсулин и HOMA-IR: гиперинсулинемия стимулирует ароматазу.'), li('Алкоголь свести к минимуму.')];
+    acts.push(li(male ? 'Эстрадиол, общий и свободный тестостерон, ГСПГ в сыворотке.' : 'E1 и E2 в моче или сыворотке в лютеиновую фазу; при миоме, эндометриозе, мастопатии нагрузку контролировать строже.'));
+    out.push({ sev: F.hiLoad ? 'alert' : 'attn', title: 'Генетика: синтез эстрогенов', why: pheno(val('E1') != null || val('E2') != null, F.hiLoad, 'Уровни E1/E2 сейчас в пределах референса: меры профилактические.', 'Генотип реализуется: E1/E2 в моче выше нормы.', 'Сопоставьте с E1 и E2 в моче.'), blocks: [['Генотип', syn.map(id => li(line(id)))], ['Что делать', acts]], caution: '' });
+  }
+
+  // Methylation
+  const me = ['COMT', 'MTHFR677'].filter(id => ge(id)).concat(['MTHFR1298', 'MTR', 'MTRR'].filter(id => G[id] === 2));
+  if (me.length) {
+    const acts = [li('Гомоцистеин, B12 (голотранскобаламин), фолат в сыворотке.')];
+    if (ge('COMT')) acts.push(...(noSupp ? [] : [li('Кофакторы COMT: магний 200–400 мг/сут, доноры метильных групп (бетаин 500–1500 мг/сут, холин).')]), li('Избегать высоких доз кверцетина и экстракта зелёного чая (EGCG): ингибируют COMT.'), li('Стресс и катехоламины конкурируют за COMT: сон, восстановление.'));
+    if (ge('MTHFR677') || G.MTHFR1298 === 2) acts.push(li(noSupp ? 'Фолаты в активной форме по стандарту ведения беременности.' : 'Метилфолат 400–1000 мкг/сут вместо фолиевой кислоты.'));
+    if (G.MTR === 2 || G.MTRR === 2) acts.push(li('Активные формы B12: метил- или гидроксокобаламин 500–1000 мкг/сут.'));
+    out.push({ sev: F.lowMeth ? 'alert' : 'attn', title: 'Генетика: метилирование (COMT, фолатный цикл)', why: pheno(R.m2 != null || R.m2inv != null || R.m4inv != null, F.lowMeth, 'Метилирование в моче сейчас достаточное: меры профилактические.', 'Генотип реализуется: метилирование катехолэстрогенов в моче снижено.', 'Сопоставьте с 2-OMeE1/2-OHE1 в моче.'), blocks: [['Генотип', me.map(id => li(line(id)))], ['Что делать', acts]], caution: onco });
+  }
+
+  // Quinone defence
+  const qd = ['GSTM1', 'GSTT1'].filter(id => G[id] === 2).concat(['GSTP1', 'NQO1'].filter(id => ge(id)));
+  if (qd.length) {
+    const acts = [];
+    if (!noSupp) acts.push(li('N-ацетилцистеин 600–1200 мг/сут для пула глутатиона.'), li('Сульфорафан или крестоцветные ежедневно: индуцируют глутатион-S-трансферазы' + (ge('NQO1') ? ' (на NQO1 при Ser/Ser не влияет)' : '') + '.'));
+    acts.push(li('Снизить токсическую нагрузку: курение, ПАУ, растворители, пережаренная пища.'));
+    if (ge('NQO1')) acts.push(li('NQO1: хиноны эстрогенов дольше остаются активными, перевес 4-OH пути особенно нежелателен.'));
+    out.push({ sev: F.hi4 ? 'alert' : 'attn', title: 'Генетика: защита от хинонов (GST, NQO1)', why: pheno(val('OH4E1') != null, F.hi4, '4-OH путь в моче без перевеса: меры профилактические.', '4-OH путь в моче повышен: хиноны образуются активнее при ослабленной защите.', 'Сопоставьте с 4-OHE1 и 2/4 в моче.'), blocks: [['Генотип', qd.map(id => li(line(id)))], ['Что делать', acts]], caution: onco });
+  }
+
+  // Conjugation
+  const cj = ['SULT1A1', 'UGT1A1'].filter(id => ge(id));
+  if (cj.length) {
+    const acts = [li('Клетчатка 30–40 г/сут и ежедневный стул.')];
+    if (!noSupp) acts.push(li('Кальций-D-глюкарат 500–1500 мг/сут.'));
+    if (ge('UGT1A1')) acts.push(li('Билирубин общий и непрямой; учитывать препараты-субстраты UGT1A1 (иринотекан, атазанавир).'));
+    if (ge('SULT1A1')) acts.push(li('Достаточно серосодержащей пищи: крестоцветные, яйца, лук, чеснок.'));
+    out.push({ sev: F.hiLoad ? 'alert' : 'attn', title: 'Генетика: конъюгация и выведение', why: pheno(val('E1') != null || val('E2') != null, F.hiLoad, 'Нагрузка эстрогенами в моче сейчас в норме: меры профилактические.', 'E1/E2 в моче повышены: замедленное выведение может вносить вклад.', 'Сопоставьте с E1 и E2 в моче.'), blocks: [['Генотип', cj.map(id => li(line(id)))], ['Что делать', acts]], caution: onco });
+  }
+
+  // Receptors
+  const rc = ['ESR1_PvuII', 'ESR1_XbaI', 'PGR'].filter(id => ge(id));
+  if (rc.length) {
+    const acts = [];
+    if (ge('ESR1_PvuII') || ge('ESR1_XbaI')) acts.push(li('Ткани могут сильнее отвечать на ту же эстрогенную нагрузку: целевые E1/E2 и 2/16 держать строже.'));
+    if (ge('PGR')) acts.push(li('Сниженная чувствительность к прогестерону: учитывать при недостаточности лютеиновой фазы и выборе гестагенной терапии с гинекологом.'));
+    out.push({ sev: 'info', title: 'Генетика: рецепторы', why: 'Рецепторные варианты не меняют метаболизм, но меняют ответ тканей.' + (F.loPD && ge('PGR') ? ' Прегнандиол снижен: сочетание с PGR усиливает относительный перевес эстрогенов.' : ''), blocks: [['Генотип', rc.map(id => li(line(id)))], ['Что делать', acts]], caution: '' });
+  }
+
+  const combos = geneCombos(G, bmi);
+  if (combos.length) out.unshift({ sev: 'alert', title: 'Генетика: неблагоприятные сочетания', why: 'Варианты в одном пути усиливают эффект друг друга.', blocks: [['Сочетания', combos.map(t => li(t))]], caution: '' });
+
+  if (!out.length) out.push({ sev: 'ok', title: 'Генетика: варианты риска не выявлены', why: 'Проверено вариантов: ' + tested.length + '. Генотип не требует отдельных мер.', blocks: [], caution: '' });
+  return out;
 }
 function renderRec(r) {
   const sev = { alert: 'alert', attn: '', info: 'info', ok: 'ok' }[r.sev] || '';
@@ -1029,6 +1184,17 @@ function buildConclusion(c) {
   if (F.quality.length) L.push('   Замечания к сбору: ' + F.quality.join(' '));
   B.forEach(b => L.push('   Примечание: ' + b));
   L.push('');
+  const G = c.G || state.genes;
+  const tested = GC.filter(v => G[v.id] != null);
+  if (tested.length) {
+    L.push('');
+    L.push('Генетика ферментов биотрансформации:');
+    tested.filter(v => G[v.id] >= 1).forEach(v => L.push('   – ' + v.label + ' (' + v.note.split(' · ')[0] + '): ' + gtText(v.id) + '. ' + v.effect.charAt(0).toUpperCase() + v.effect.slice(1) + '.'));
+    const norm = tested.filter(v => G[v.id] === 0).map(v => v.label);
+    if (norm.length) L.push('   Без вариантов риска: ' + norm.join(', ') + '.');
+    L.push('   Генотип отражает предрасположенность; фактическую активность ферментов показывает профиль метаболитов в моче.');
+  }
+  L.push('');
   L.push('4. Рекомендовано:');
   let n = 0;
   recs.forEach(r => {
@@ -1062,6 +1228,33 @@ function buildConversion(crea, pk) {
   $('tblConv').querySelector('tbody').innerHTML = rows.join('');
 }
 
+/* ---------- Genetics UI ---------- */
+function buildGenes() {
+  let html = '', grp = '';
+  GC.forEach(v => {
+    if (v.grp !== grp) { html += '<div class="gene-grp">' + esc(v.grp) + '</div>'; grp = v.grp; }
+    const opts = gtOptions(v);
+    const cur = state.genes[v.id];
+    html += '<div class="gene-row"><label for="gt_' + v.id + '"><b>' + esc(v.label) + '</b><small>' + esc(v.note) + '</small></label>' +
+      '<select id="gt_' + v.id + '"' + (cur ? ' class="risk' + cur + '"' : '') + '><option value="">не исследовано</option>' +
+      opts.map((o, i) => '<option value="' + i + '"' + (cur === i ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select>' +
+      '<div class="gene-eff' + (cur ? ' r' + cur : '') + '" id="ge_' + v.id + '">' + (cur ? esc(v.effect) + (cur === 2 ? ' (гомозигота: эффект выражен)' : '') : '') + '</div></div>';
+  });
+  $('geneList').innerHTML = html;
+  GC.forEach(v => $('gt_' + v.id).addEventListener('change', e => {
+    const x = e.target.value; state.genes[v.id] = x === '' ? null : Number(x);
+    e.target.className = state.genes[v.id] ? 'risk' + state.genes[v.id] : '';
+    const ge = $('ge_' + v.id); ge.className = 'gene-eff' + (state.genes[v.id] ? ' r' + state.genes[v.id] : '');
+    ge.textContent = state.genes[v.id] ? v.effect + (state.genes[v.id] === 2 ? ' (гомозигота: эффект выражен)' : '') : '';
+    compute();
+  }));
+}
+function geneSummary() {
+  const tested = GC.filter(v => state.genes[v.id] != null);
+  const risk = tested.filter(v => state.genes[v.id] >= 1);
+  $('genSum').textContent = tested.length ? 'Указано генотипов: ' + tested.length + ', с вариантами риска: ' + risk.length + '.' : 'Генотипы не указаны. Выберите вручную или загрузите PDF генетического анализа.';
+}
+
 /* ---------- Wiring ---------- */
 function onProfileOrStatus() {
   loadRefs(); buildTable();
@@ -1074,6 +1267,7 @@ function loadExample() {
   $('age').value = ex.age; $('bmi').value = ex.bmi; $('vol').value = ex.vol; $('crea').value = ex.crea;
   ['cCancer', 'cTam', 'cPreg', 'cCOC', 'cDIM', 'cHPV', 'cBenign', 'cFam'].forEach(id => { $(id).checked = !!ex.ctx[id]; });
   state.values = Object.assign({}, ex.values);
+  state.genes = Object.assign({}, EXAMPLE_GENES); buildGenes();
   $('exampleTag').classList.remove('hidden');
   onProfileOrStatus();
 }
@@ -1126,7 +1320,7 @@ function impRender() {
   sel.innerHTML = Object.entries(PROFILES).map(([k, p]) => '<option value="' + k + '">' + esc(p.label) + '</option>').join('');
   sel.value = d.format;
   $('impStatusSel').value = d.patient.sex === 'male' ? 'male' : ($('status').value === 'male' && d.patient.sex === 'female' ? 'lut' : $('status').value);
-  $('impMeta').innerHTML = '<span>Файл: <b>' + esc(d.fileName) + '</b></span><span>Способ: ' + esc(d.method) + '</span><span>Найдено показателей: <b>' + keys.filter(k => k !== 'CREA' && k !== 'VOL').length + '</b></span>' + (d.ocr ? '<span style="color:var(--warn)">Распознано с изображения: сверьте каждое значение с бланком</span>' : '') +
+  $('impMeta').innerHTML = '<span>Файл: <b>' + esc(d.fileName) + '</b></span><span>Способ: ' + esc(d.method) + '</span><span>Найдено показателей: <b>' + keys.filter(k => k !== 'CREA' && k !== 'VOL').length + '</b></span>' + (d.genes && Object.keys(d.genes).length ? '<span>Генотипов: <b>' + Object.keys(d.genes).length + '</b></span>' : '') + (d.ocr ? '<span style="color:var(--warn)">Распознано с изображения: сверьте каждое значение с бланком</span>' : '') +
     (d.patient.sex ? '<span>Пол: ' + (d.patient.sex === 'male' ? 'мужской' : 'женский') + '</span>' : '') + (d.patient.age ? '<span>Возраст: ' + d.patient.age + '</span>' : '');
   $('impRows').innerHTML = keys.length ? keys.map(k => {
     const f = d.found[k];
@@ -1136,6 +1330,18 @@ function impRender() {
       '<td class="num refcell">' + (f.ref ? fmtR(f.ref) : '—') + '</td>' +
       '<td class="src">' + esc(f.src) + '</td></tr>';
   }).join('') : '<tr><td colspan="5" style="color:var(--muted)">Показатели не найдены. Откройте распознанный текст ниже: если он пустой или искажён, попробуйте файл лучшего качества или введите значения вручную.</td></tr>';
+  const gkeys = GC.map(v => v.id).filter(id => d.genes && d.genes[id]);
+  $('impMetBlock').classList.toggle('hidden', keys.length === 0 && gkeys.length > 0);
+  $('impGenBlock').classList.toggle('hidden', gkeys.length === 0);
+  $('impGenRows').innerHTML = gkeys.map(id => {
+    const g = d.genes[id], v = GCI[id], opts = gtOptions(v);
+    const warn = g.status == null ? 'оценку выберите вручную' : g.conf === 'check' ? 'распознано по-разному, сверьте с бланком' : g.how === 'интерпретация лаборатории' ? 'по описанию лаборатории' : '';
+    return '<tr><td><input type="checkbox" id="impGOn_' + id + '" checked style="accent-color:var(--accent);" aria-label="Взять ' + esc(v.label) + '"></td>' +
+      '<td>' + esc(v.label) + '<small style="display:block;color:var(--muted)">' + esc(v.note) + '</small>' + (warn ? '<small style="display:block;color:var(--warn);font-weight:600">' + esc(warn) + '</small>' : '') + '</td>' +
+      '<td class="num">' + esc(g.gt) + '</td>' +
+      '<td><select id="impGSt_' + id + '" aria-label="Оценка ' + esc(v.label) + '"><option value="">не исследовано</option>' + opts.map((o, i) => '<option value="' + i + '"' + (g.status === i ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select></td>' +
+      '<td class="src">' + esc(g.src) + '</td></tr>';
+  }).join('');
   $('impText').value = d.text;
   $('impReview').classList.remove('hidden');
 }
@@ -1149,8 +1355,9 @@ async function impHandle(file) {
     const res = await window.LabImport.readFile(file, st, m => impSetStatus(m, 'busy'));
     res.fileName = file.name;
     impData = res;
-    const n = Object.keys(res.found).filter(k => k !== 'CREA' && k !== 'VOL').length;
-    impSetStatus(n ? 'Готово: найдено ' + n + ' показ. Проверьте значения и нажмите «Подставить в калькулятор».' : 'Показатели не найдены автоматически.', n ? '' : 'err');
+    const n = Object.keys(res.found).filter(k => k !== 'CREA' && k !== 'VOL').length, ng = Object.keys(res.genes || {}).length;
+    const parts = [n ? n + ' показ.' : '', ng ? ng + ' генотип.' : ''].filter(Boolean).join(' и ');
+    impSetStatus(parts ? 'Готово: найдено ' + parts + ' Проверьте и нажмите «Подставить в калькулятор».' : 'Показатели и генотипы не найдены автоматически.', parts ? '' : 'err');
     impRender();
   } catch (e) {
     console.error(e);
@@ -1160,6 +1367,21 @@ async function impHandle(file) {
 }
 function impApply() {
   const d = impData; if (!d) return;
+  // genotypes
+  let ng = 0;
+  Object.keys(d.genes || {}).forEach(id => {
+    const on = $('impGOn_' + id), sel = $('impGSt_' + id); if (!on || !on.checked || !sel || sel.value === '') return;
+    state.genes[id] = Number(sel.value); ng++;
+  });
+  if (ng) buildGenes();
+  const nMet = Object.keys(d.found).filter(k => k !== 'CREA' && k !== 'VOL').length;
+  if (!nMet) {
+    compute();
+    $('impReview').classList.add('hidden');
+    impSetStatus('Генотипы из «' + d.fileName + '» подставлены: ' + ng + '.', '');
+    $('h-gen').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
   const pk = $('impProfile').value;
   $('profile').value = pk;
   $('status').value = $('impStatusSel').value;
@@ -1181,7 +1403,7 @@ function impApply() {
   $('profileNote').textContent = profile().note;
   compute();
   $('impReview').classList.add('hidden');
-  impSetStatus('Значения из «' + d.fileName + '» подставлены. Проверьте фазу цикла и клинический контекст.', '');
+  impSetStatus('Значения из «' + d.fileName + '» подставлены' + (ng ? ', генотипов: ' + ng : '') + '. Проверьте фазу цикла и клинический контекст.', '');
   $('h-input').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function impInit() {
@@ -1192,6 +1414,9 @@ function impInit() {
   drop.addEventListener('drop', e => { const f = e.dataTransfer && e.dataTransfer.files[0]; impHandle(f); });
   document.addEventListener('paste', e => { const it = [...(e.clipboardData ? e.clipboardData.files : [])][0]; if (it) impHandle(it); });
   $('impApply').addEventListener('click', impApply);
+  const inp2 = $('impFile2');
+  inp2.addEventListener('change', () => { const f = inp2.files[0]; inp2.value = ''; if (f) { $('h-imp').scrollIntoView({ behavior: 'smooth', block: 'start' }); impHandle(f); } });
+  $('btnGenClear').addEventListener('click', () => { state.genes = {}; buildGenes(); compute(); });
   ['impProfile', 'impStatusSel'].forEach(id => $(id).addEventListener('change', () => { const pv = $('impProfile').value, sv = $('impStatusSel').value; impData.format = pv; impRender(); $('impStatusSel').value = sv; }));
   $('impCancel').addEventListener('click', () => { $('impReview').classList.add('hidden'); $('impStatus').classList.add('hidden'); impData = null; });
 }
