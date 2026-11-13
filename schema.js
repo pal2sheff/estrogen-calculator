@@ -139,7 +139,7 @@ function buildSvg(meta) {
   s += enzV(x1, y2, y3, 'CYP21A2') + enzV(x2, y2, y3, 'CYP21A2');
   s += enzV(x1, y3, y4, 'CYP11B1') + enzV(x2, y3, y4, 'CYP11B1') + enzV(x1, y4, y5, 'CYP11B2');
   s += enzH(x1, x2, y1, 'CYP17A1', c17) + enzH(x2, x3, y1, 'CYP17A1', c17) + enzH(x1, x2, y2, 'CYP17A1', c17);
-  s += enzH(x3, x4, y2, 'HSD17B3') + label((x3 + x4) / 2, y3 + 44, 'HSD17B1', 10.5, C.grey, 'middle', 700);
+  s += enzH(x3, x4, y2, 'HSD17B3') + label((x3 + x4) / 2, y3 - 34, 'HSD17B1 →', 10, C.grey, 'middle', 700) + label((x3 + x4) / 2, y3 + 40, '← HSD17B2', 10, C.grey, 'middle', 700);
   s += label(xPD, y2 - 34, '5β-редукция', 10.5, C.grey, 'middle', 700);
   const p19 = geneP(['CYP19A1'], 'CYP19A1');
   const c19 = ST[p19[1]][1];
@@ -196,7 +196,7 @@ function buildSvg(meta) {
   const pA2 = (() => { const n = G.CYP1A2; return ['CYP1A2 ' + (n == null ? 'н/и' : gtShort('CYP1A2')), n == null ? 'grey' : n === 2 ? 'bad' : n === 1 ? 'ok' : 'ok']; })();
   s += pill(xa - 48, ya - 46, pA1[0], pA1[1]) + pill(xa + 52, ya - 46, pA2[0], pA2[1]);
   const p3A4 = geneP(['CYP3A4'], 'CYP3A4');
-  s += pill(xa, yb - 46, p3A4[0], p3A4[1]);
+  s += pill(xa - 40, yb - 46, p3A4[0], p3A4[1]) + label(xa + 32, yb - 42, 'и др. CYP3A', 10.5, C.grey, 'start', 600);
   const p1B1 = geneP(['CYP1B1'], 'CYP1B1');
   s += pill(xa, yc - 46, p1B1[0], p1B1[1]);
   // phase I nodes
@@ -221,7 +221,7 @@ function buildSvg(meta) {
   s += label(xb - MW / 2 - 4, y3 - 230, '', 11);
   const pComt = geneP(['COMT'], 'COMT');
   s += label((xa + xb) / 2, ya - 8, 'COMT', 10.5, ST[pComt[1]][1], 'middle', 700) + label((xa + xb) / 2, yc - 8, 'COMT', 10.5, ST[pComt[1]][1], 'middle', 700);
-  s += pill((xa + xb) / 2, ya + 48, pComt[0], pComt[1]);
+  s += pill(xb - 175, ya - 100, pComt[0], pComt[1]);
   const m2val = v('MeO2E1') == null ? 'не измерен' : fmt(v('MeO2E1')) + (R.m2 != null ? ' · 2-OMe/2-OH ' + fmt(R.m2) : '');
   const m2st = v('MeO2E1') == null ? 'grey' : worst(stFromRange(S.MeO2E1, { low: 'bad', high: 'ok' }), methBad ? 'bad' : 'grey');
   s += node(xb, ya, MW, MH, '2-метоксиэстрогены', m2val, m2st, { confirmed: G.COMT >= 1 && methBad });
@@ -276,6 +276,76 @@ function buildSvg(meta) {
   s += arrow(xb + MW / 2, ya, xc - 82, ya);
   s += arrow(xb + MW / 2, yb, xc - 82, yb);
   s += arrow(xb + MW / 2, yc, xc - 82, yc);
+
+
+  /* ---------- modifiers (what speeds up / slows down each step) ---------- */
+  const mod = (x, y, lines, anchor) => lines.map((t, i) => label(x, y + i * 13, t, 10.5, t.charAt(0) === '↑' ? C.edge : t.charAt(0) === '↓' ? C.ok : C.muted, anchor || 'start', 500)).join('');
+  s += label(525, 552, 'Ароматаза', 10.5, C.ink, 'start', 700);
+  s += mod(525, 566, ['↑ ожирение, инсулин, алкоголь', '↓ снижение массы, лигнаны']);
+  s += mod(xa - MW / 2, ya + 44, ['↑ крестоцветные, DIM/I3C, лён,', '   омега-3, нагрузка', '↓ ожирение, гипотиреоз']);
+  s += mod(xa - MW / 2, yb + 64, ['↑ ожирение, гипотиреоз,', '   алкоголь, пестициды']);
+  s += mod(xa + 10, yc + 46, ['↑ курение, ПАУ, алкоголь', '↓ сульфорафан, ресвератрол']);
+  s += mod(xb - 8, ya - 72, ['COMT ↑ Mg, SAMe, B6/B9/B12', '↓ кверцетин, EGCG, стресс'], 'end');
+
+  /* ---------- at a glance: ratio scales and metabolite donut ---------- */
+  const gx = 525, gy = 640;
+  s += '<rect x="' + (gx - 10) + '" y="' + gy + '" width="' + (895 - gx + 10) + '" height="232" rx="10" fill="#faf7f9" stroke="' + C.line + '"/>';
+  s += label(gx + 4, gy + 24, 'Коротко', 15, C.accent, 'start', 700, FONTC);
+  const scale = (y, title, val, ref, loTxt, hiTxt, goodHigh) => {
+    let o = label(gx + 4, y, title, 12, C.ink, 'start', 600);
+    const x0 = gx + 4, w = 180, ty = y + 12;
+    const lo = ref && ref[0] != null ? ref[0] : null, hi = ref && ref[1] != null ? ref[1] : null;
+    // three zones: below / within / above
+    const zb = goodHigh ? C.badSoft : C.badSoft, za = goodHigh ? C.okSoft : C.edgeSoft;
+    o += '<rect x="' + x0 + '" y="' + ty + '" width="' + w / 3 + '" height="10" rx="5" fill="' + zb + '"/>';
+    o += '<rect x="' + (x0 + w / 3) + '" y="' + ty + '" width="' + w / 3 + '" height="10" fill="' + C.okSoft + '" stroke="' + C.ok + '" stroke-width="0.8"/>';
+    o += '<rect x="' + (x0 + 2 * w / 3) + '" y="' + ty + '" width="' + w / 3 + '" height="10" rx="5" fill="' + za + '"/>';
+    if (val != null && lo != null) {
+      let p; const L = lo, Hh = hi != null ? hi : lo * 3;
+      if (val < L) p = (val / L) / 3; else if (val <= Hh) p = 1 / 3 + (val - L) / (Hh - L) / 3; else p = 2 / 3 + Math.min(1, (val - Hh) / (Hh * 1.5)) / 3;
+      p = Math.max(0.01, Math.min(0.99, p));
+      o += '<path d="M' + (x0 + p * w - 6) + ',' + (ty - 7) + ' L' + (x0 + p * w + 6) + ',' + (ty - 7) + ' L' + (x0 + p * w) + ',' + (ty + 1) + ' z" fill="' + C.ink + '"/>';
+      o += '<rect x="' + (x0 + p * w - 1.5) + '" y="' + (ty - 2) + '" width="3" height="14" fill="' + C.ink + '"/>';
+    }
+    o += label(x0, ty + 24, loTxt, 10, C.muted) + label(x0 + w, ty + 24, hiTxt, 10, C.muted, 'end');
+    o += label(x0 + w + 8, ty + 10, val == null ? 'н/д' : fmt(val), 13, C.ink, 'start', 700);
+    o += label(x0 + w / 2, ty + 38, ref ? 'норма ' + (hi != null ? (lo != null ? fmt(lo) : '') + '–' + fmt(hi) : '≥ ' + fmt(lo)) : '', 9.5, C.ok, 'middle', 600);
+    return o;
+  };
+  const r216ref = (L.RR && L.RR.r216) || [2, null];
+  const m2ref = (L.RR && (L.RR.m2 || null)) || [0.39, 0.67];
+  s += scale(gy + 50, '2/16: 2-OH / 16α-OH', R.r216, r216ref, 'перевес 16α', 'перевес 2-OH', true);
+  s += scale(gy + 120, 'Метилирование: 2-OMe / 2-OH', R.m2, m2ref, 'меньше', 'больше', true);
+  s += label(gx + 4, gy + 192, 'Шкалы: зелёная зона — референс панели', 9.5, C.grey);
+  s += label(gx + 4, gy + 205, '(для 2/16 без референса — ориентир 2,0)', 9.5, C.grey);
+  // donut of metabolites
+  const segs = [
+    ['2-OH', (v('OH2E1') || 0) + (v('OH2E2') || 0), C.ok],
+    ['2-OMe', (v('MeO2E1') || 0) + (v('MeO2E2') || 0), '#1f5e3a'],
+    ['16α-OH', v('OH16E1') || 0, '#d29a1f'],
+    ['4-OH', (v('OH4E1') || 0) + (v('OH4E2') || 0), C.bad],
+    ['4-OMe', v('MeO4E1') || 0, '#7fb894']
+  ].filter(x => x[1] > 0);
+  const tot = segs.reduce((a, x) => a + x[1], 0);
+  const cx = 830, cy = gy + 92, ro = 46, ri = 27;
+  if (tot > 0) {
+    let a0 = -Math.PI / 2;
+    segs.forEach(([n, val, col]) => {
+      const a1 = a0 + 2 * Math.PI * val / tot, big = a1 - a0 > Math.PI ? 1 : 0;
+      const P = (r, a) => (cx + r * Math.cos(a)).toFixed(1) + ',' + (cy + r * Math.sin(a)).toFixed(1);
+      if (segs.length === 1) s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + ((ro + ri) / 2) + '" fill="none" stroke="' + col + '" stroke-width="' + (ro - ri) + '"/>';
+      else s += '<path d="M' + P(ro, a0) + ' A' + ro + ',' + ro + ' 0 ' + big + ' 1 ' + P(ro, a1) + ' L' + P(ri, a1) + ' A' + ri + ',' + ri + ' 0 ' + big + ' 0 ' + P(ri, a0) + ' z" fill="' + col + '" stroke="#fff" stroke-width="1.5"/>';
+      a0 = a1;
+    });
+    s += label(cx, cy + 4, 'метаболиты', 9, C.muted, 'middle');
+    segs.forEach(([n, val, col], i) => {
+      const lx = 790, ly = gy + 152 + i * 14;
+      s += '<rect x="' + lx + '" y="' + (ly - 8) + '" width="9" height="9" rx="2" fill="' + col + '"/>' + label(lx + 13, ly, n + ' ' + Math.round(100 * val / tot) + '%', 9.5, C.ink);
+    });
+  } else {
+    s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + ((ro + ri) / 2) + '" fill="none" stroke="' + C.greySoft + '" stroke-width="' + (ro - ri) + '"/>' + label(cx, cy + 4, 'нет данных', 10, C.grey, 'middle');
+  }
+  s += label(cx, gy + 24, 'Распределение', 11, C.muted, 'middle', 600);
 
   /* ---------- footer: legend + findings ---------- */
   const fy = 925;

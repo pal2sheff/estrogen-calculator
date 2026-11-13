@@ -380,6 +380,8 @@ function genotypeFrom(seg, v) {
   const notM = /(?:c\.|g\.)?-?\d+(?:[+-]\d+)?([ACGT])\s*>\s*([ACGT])/i.exec(seg);
   const notation = notM ? [notM[1].toUpperCase(), notM[2].toUpperCase()] : null;
   let ref = v.ref, eff = v.eff;
+  // aromatase: the risk allele differs between CYP19A1 variants, so the lab's own grading wins when present
+  if (v.alleleBy) { const li0 = labInterp(seg); if (li0 != null) { const mm = /([ACGT])\s*[\/\\]\s*([ACGT])/.exec(seg); return { gt: mm ? mm[1] + '/' + mm[2] : '?', status: li0, how: 'интерпретация лаборатории' }; } }
   if (v.alleleBy) { const rs = (seg.match(/rs\s?\d+/i) || [''])[0].replace(/\s/g, '').toLowerCase(); if (v.alleleBy[rs]) [ref, eff] = v.alleleBy[rs]; else if (!rs || !v.alleleBy[rs]) { ref = null; eff = null; } }
   // amino-acid / allele-name genotype
   if (v.aa) {

@@ -89,6 +89,7 @@ td { padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: mid
 tr.grp td { background: var(--paper); font-family: var(--font-display); font-weight: 600; font-size: 13px; color: var(--muted); padding-top: 10px; }
 td.name { min-width: 190px; }
 td.name small { display: block; color: var(--muted); font-size: 12px; }
+input.invalid { border-color: var(--bad) !important; background: var(--bad-soft) !important; }
 input.v { width: 92px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-family: var(--font-mono); text-align: right; }
 input.r { width: 66px; padding: 4px 6px; border: 1px dashed var(--line); border-radius: 5px; background: transparent; font-family: var(--font-mono); font-size: 13px; text-align: right; color: var(--muted); }
 .refcell { white-space: nowrap; color: var(--muted); }
@@ -336,7 +337,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
         <h2 id="h-input">2. Результаты анализа</h2>
         <div class="btns">
           <button class="btn" id="btnExample" type="button">Заполнить пример</button>
-          <button class="btn" id="btnClear" type="button">Очистить значения</button>
+          <button class="btn" id="btnClear" type="button">Новый пациент</button>
           <label style="display:flex; gap:6px; align-items:center; font-size:13px; color:var(--muted);"><input type="checkbox" id="showAll" style="accent-color:var(--accent);"> все показатели</label>
         </div>
       </header>
@@ -405,7 +406,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
     <div style="display:grid; gap:8px;">
       <h3>Как считаются индексы</h3>
       <ul>
-        <li><b>2/16</b> = 2-OHE1 ÷ 16α-OHE1 (DUTCH, Гемохелп) или (2-OHE1 + 2-OHE2) ÷ 16α-OHE1 (Хеликс, КДЛ, Хромолаб, панель «Олимп»). Клинический ориентир российских лабораторий: выше 2,0.</li>
+        <li><b>2/16</b> = 2-OHE1 ÷ 16α-OHE1 (DUTCH, панель ГХ-МС 10 показателей в мкг/сут) или (2-OHE1 + 2-OHE2) ÷ 16α-OHE1 (Хеликс, КДЛ, Хромолаб, панель «Олимп»). Клинический ориентир российских лабораторий: выше 2,0.</li>
         <li><b>2/4</b> = 2-OHE1 ÷ 4-OHE1. Ориентир DUTCH 5,4–12,6.</li>
         <li><b>Доли пути</b> = каждый из 2-OHE1, 4-OHE1, 16α-OHE1 ÷ их сумма. DUTCH ожидает 60–80 % / 7,5–11 % / 13–30 %; Инвитро: доля 16α-OHE1 до 20 %.</li>
         <li><b>Метилирование</b> = 2-OMeE1 ÷ 2-OHE1 и 4-OMeE1 ÷ 4-OHE1 (обратные индексы 2-OHE1/2-OMeE1 и 4-OHE1/4-OMeE1 растут при слабом метилировании).</li>
@@ -489,7 +490,7 @@ const PROFILES = {
     }
   },
   gemo24: {
-    label: 'Суточная моча · мкг/сут · 10 показателей ГХ/ВЭЖХ-МС (Гемохелп, CMD, КДЛ)',
+    label: 'Суточная моча · мкг/сут · 10 показателей ГХ-МС (Гемотест, CMD, «Наука»)',
     unit: 'мкг/сут', kind: 'ug24',
     analytes: ['E1', 'E2', 'E3', 'OH2E1', 'OH2E2', 'OH4E1', 'OH16E1', 'MeO2E1', 'MeO4E1', 'PD'],
     r216: 'single',
@@ -699,7 +700,11 @@ function buildTable() {
 }
 function onInput(e) {
   const id = e.target.id; const [kind, k] = id.split('_');
-  const n = parseNum(e.target.value);
+  let n = parseNum(e.target.value);
+  const bad = (e.target.value.trim() !== '' && n == null) || (n != null && n < 0);
+  e.target.classList.toggle('invalid', bad);
+  e.target.title = bad ? 'Введите неотрицательное число' : '';
+  if (bad) n = null;
   if (kind === 'v') state.values[k] = n;
   else if (kind === 'lo') state.refs[k][0] = n;
   else if (kind === 'hi') state.refs[k][1] = n;
@@ -721,7 +726,8 @@ function compute() {
   ANALYTES.forEach(a => { S[a.k] = classify(val(a.k), state.refs[a.k]); });
   document.querySelectorAll('#tblIn tbody tr[data-k]').forEach(tr => {
     const k = tr.dataset.k;
-    tr.querySelector('.st').innerHTML = pill(S[k]);
+    const favA = { OH4E1: 'low', OH4E2: 'low', MeO2E1: 'high', MeO2E2: 'high', MeO4E1: 'high', OH2E1: 'high', OH2E2: 'high' };
+    tr.querySelector('.st').innerHTML = favA[k] && favA[k] === S[k] ? '<span class="pill ok">' + (S[k] === 'high' ? 'выше' : 'ниже') + ' · благоприятно</span>' : pill(S[k]);
     tr.querySelector('.br').innerHTML = bar(val(k), state.refs[k]);
   });
 
@@ -779,10 +785,20 @@ function compute() {
     let st = classify(R[d.k], ref);
     if (d.k === 'r216' && R.r216 < 2 && st !== 'low') st = 'edge2';
     if ((d.k === 'm4' || d.k === 'm2') && st === 'high') st = 'hiok';
+    // favourable direction is not a deviation
+    const favHigh = { r216: !ctx.cDIM, r24: true, s2: true }, favLow = { s4: true, m2inv: true, m4inv: true };
+    if (st === 'high' && favHigh[d.k]) st = 'fav';
+    if (st === 'low' && favLow[d.k]) st = 'fav';
+    if (st === 'low' && d.k === 's16') st = 'bone';
+    // DUTCH distribution targets are only an orientation for other methods
+    if (pk !== 'dutch' && (d.k === 's2' || d.k === 's4' || (d.k === 's16' && !pRefs.s16)) && (st === 'high' || st === 'low' || st === 'edge')) st = 'orient-' + st;
     RS[d.k] = st; RR[d.k] = ref;
     const labels = { edge2: 'ниже 2,0' };
     let pl;
     if (st === 'edge2') pl = '<span class="pill edge">ниже 2,0</span>';
+    else if (st === 'fav') pl = '<span class="pill ok">' + (R[d.k] > (ref && ref[1] != null ? ref[1] : Infinity) ? 'выше' : 'ниже') + ' · благоприятно</span>';
+    else if (st === 'bone') pl = '<span class="pill edge">ниже · костный обмен</span>';
+    else if (st.indexOf('orient-') === 0) pl = '<span class="pill none">' + ({ high: 'выше', low: 'ниже', edge: 'у границы' }[st.slice(7)]) + ' ориентира</span>';
     else if (st === 'hiok') pl = '<span class="pill ok">выше (не патология)</span>';
     else if (st === 'noref') pl = '<span class="pill none">справочно</span>';
     else pl = pill(st, labels);
@@ -809,9 +825,9 @@ function compute() {
   F.hiLoad = high('E1') || high('E2') || (RS.tot === 'high');
   F.loLoad = (low('E1') && low('E2')) || (RS.tot === 'low') || (low('E2') && val('E1') == null);
   F.low216 = R.r216 != null && (RS.r216 === 'low' || RS.r216 === 'edge2');
-  F.hi16 = high('OH16E1') || RS.s16 === 'high';
+  F.hi16 = high('OH16E1') || RS.s16 === 'high';  // RS.s16 is 'orient-high' for non-DUTCH panels without a lab reference
   F.lo16 = low('OH16E1');
-  F.hi4 = high('OH4E1') || high('OH4E2') || RS.r24 === 'low' || RS.s4 === 'high';
+  F.hi4 = high('OH4E1') || high('OH4E2') || RS.r24 === 'low' || RS.s4 === 'high';  // RS.s4 is 'orient-high' outside DUTCH
   F.lo2 = low('OH2E1') && !F.loLoad;
   F.lowMeth = RS.m2 === 'low' || RS.m2inv === 'high' || RS.m4inv === 'high' || (low('MeO2E1') && !low('OH2E1'));
   F.lowEQ = R.eq != null && R.eq < 1;
@@ -883,7 +899,7 @@ function compute() {
   buildConversion(crea, pk);
 
   /* ---------- Schema ---------- */
-  state.last = { F, R, RS, S, vals: Object.assign({}, state.values), stVal, pk, bmi, findings: findingsList(F, R, stVal, bmi) };
+  state.last = { F, R, RS, RR, S, vals: Object.assign({}, state.values), stVal, pk, bmi, findings: findingsList(F, R, stVal, bmi) };
   if (window.Schema && !$('tabSchema').classList.contains('hidden')) window.Schema.render();
 }
 
@@ -1010,7 +1026,18 @@ function buildRecs(c) {
     });
   }
 
-  if (F.loLoad && stVal !== 'pm') {
+  if (F.loLoad && stVal === 'pmhrt') {
+    recs.push({
+      sev: 'attn', title: 'Низкие эстрогены на фоне ЗГТ', why: 'E1/E2 ниже лютеинового ориентира, по которому оценивается ЗГТ.',
+      blocks: [['Что проверить', [
+        li('Регулярность приёма, дозу, путь введения (трансдермальный путь даёт меньше эстрона, чем пероральный) и время сбора мочи относительно приёма.', 'практ.'),
+        li('Соответствие дозы симптомам: вазомоторные и урогенитальные жалобы, костный обмен.', 'практ.'),
+        li('Коррекцию схемы ЗГТ обсуждать с гинекологом.', 'практ.')
+      ]]],
+      caution: ''
+    });
+  }
+  if (F.loLoad && stVal !== 'pm' && stVal !== 'pmhrt') {
     recs.push({
       sev: 'attn', title: 'Низкие эстрогены', why: 'E1/E2 ниже референса для выбранного статуса.',
       blocks: [
@@ -1072,9 +1099,9 @@ function buildRecs(c) {
     ]]],
     caution: ''
   });
-  if (ctx.cFam || ctx.cBenign) {
-    recs.push({ sev: 'info', title: 'Онконастороженность', why: (ctx.cFam ? 'Семейный анамнез РМЖ / рака яичников. ' : '') + (ctx.cBenign ? 'Эстрогензависимые доброкачественные заболевания.' : ''), blocks: [['Наблюдение', [
-      li('Маммологический скрининг по возрасту и национальной программе; при семейном анамнезе обсудить консультацию генетика (BRCA1/2).', 'практ.'),
+  if (ctx.cFam || (ctx.cBenign && !male)) {
+    recs.push({ sev: 'info', title: 'Онконастороженность', why: (ctx.cFam ? 'Семейный анамнез РМЖ / рака яичников. ' : '') + (ctx.cBenign && !male ? 'Эстрогензависимые доброкачественные заболевания.' : ''), blocks: [['Наблюдение', [
+      li(male ? 'Консультация генетика (BRCA1/2: у мужчин-носителей повышен риск рака молочной железы и предстательной железы); ПСА и осмотр молочных желёз по возрасту.' : 'Маммологический скрининг по возрасту и национальной программе; при семейном анамнезе обсудить консультацию генетика (BRCA1/2).', 'практ.'),
       li('Профиль метаболитов эстрогенов не заменяет визуализацию и онкоскрининг.', 'практ.')
     ]]], caution: '' });
   }
@@ -1167,7 +1194,7 @@ function buildGeneRecs(c) {
   if (cj.length) {
     const acts = [li('Клетчатка 30–40 г/сут и ежедневный стул.')];
     if (!noSupp) acts.push(li('Кальций-D-глюкарат 500–1500 мг/сут.'));
-    if (ge('UGT1A1')) acts.push(li('Билирубин общий и непрямой; учитывать препараты-субстраты UGT1A1 (иринотекан, атазанавир).'));
+    if (ge('UGT1A1')) acts.push(li('Билирубин общий и непрямой; учитывать иринотекан (субстрат UGT1A1) и атазанавир (ингибитор UGT1A1, повышает билирубин).'));
     if (ge('SULT1A1')) acts.push(li('Достаточно серосодержащей пищи: крестоцветные, яйца, лук, чеснок.'));
     out.push({ sev: F.hiLoad ? 'alert' : 'attn', title: 'Генетика: конъюгация и выведение', why: pheno(val('E1') != null || val('E2') != null, F.hiLoad, 'Нагрузка эстрогенами в моче сейчас в норме: меры профилактические.', 'E1/E2 в моче повышены: замедленное выведение может вносить вклад.', 'Сопоставьте с E1 и E2 в моче.'), blocks: [['Генотип', cj.map(id => li(line(id)))], ['Что делать', acts]], caution: onco });
   }
@@ -1335,7 +1362,13 @@ function init() {
   ['age', 'bmi', 'vol', 'crea'].forEach(id => $(id).addEventListener('input', compute));
   ['cCancer', 'cTam', 'cPreg', 'cCOC', 'cDIM', 'cHPV', 'cBenign', 'cFam'].forEach(id => $(id).addEventListener('change', compute));
   $('btnExample').addEventListener('click', loadExample);
-  $('btnClear').addEventListener('click', () => { state.values = {}; ['age', 'bmi', 'vol', 'crea'].forEach(id => $(id).value = ''); $('exampleTag').classList.add('hidden'); buildTable(); compute(); });
+  $('btnClear').addEventListener('click', () => {
+    state.values = {}; state.genes = {};
+    ['age', 'bmi', 'vol', 'crea', 'scFio', 'scDate', 'scDoc'].forEach(id => { if ($(id)) $(id).value = ''; });
+    ['cCancer', 'cTam', 'cPreg', 'cCOC', 'cDIM', 'cHPV', 'cBenign', 'cFam'].forEach(id => { $(id).checked = false; });
+    $('exampleTag').classList.add('hidden'); $('impStatus').classList.add('hidden'); $('impReview').classList.add('hidden');
+    loadRefs(); buildTable(); buildGenes(); compute();
+  });
   $('btnCopy').addEventListener('click', async () => {
     const ta = $('concl');
     try { await navigator.clipboard.writeText(ta.value); $('copyMsg').textContent = 'Скопировано'; }
