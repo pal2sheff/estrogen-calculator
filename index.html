@@ -293,6 +293,9 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
         <label class="f" for="profile">Лаборатория / формат бланка
           <select id="profile"></select>
         </label>
+        <label class="f" for="pFio">ФИО пациента (необязательно)
+          <input id="pFio" type="text" autocomplete="off" placeholder="Фамилия Имя Отчество">
+        </label>
         <label class="f" for="status">Пол, фаза цикла, менопауза
           <select id="status">
             <option value="fol">Женщина · фолликулярная фаза</option>
@@ -1227,68 +1230,221 @@ function renderRec(r) {
 
 /* ---------- Conclusion ---------- */
 const STATUS_TXT = { fol: 'фолликулярная фаза', ov: 'овуляторная фаза', lut: 'лютеиновая фаза', pm: 'постменопауза без ЗГТ', pmhrt: 'постменопауза на ЗГТ', male: 'мужчина' };
+function gShort(id) {
+  const n = state.genes[id]; if (n == null) return '';
+  const v = GCI[id], o = gtOptions(v)[n].split(' · ')[0];
+  if (v.alleleBy) return v.gene + ' ' + (n === 2 ? 'гомозигота' : 'гетерозигота') + ' по варианту риска';
+  if (v.type === 'ta') return v.gene + ' ' + o.split(' ')[0];
+  const m = o.match(/\(([^)]+)\)/);
+  return v.gene + ' ' + (m ? m[1] : o.trim());
+}
 function buildConclusion(c) {
-  const { F, R, RS, RR, S, val, stVal, age, bmi, pk, recs, r216def, crea, vol, B } = c;
-  const p = PROFILES[pk];
-  const L = [];
-  const today = new Date();
-  L.push('МЕТАБОЛИТЫ ЭСТРОГЕНОВ: ИНТЕРПРЕТАЦИЯ (проект, ' + today.toLocaleDateString('ru-RU') + ')');
-  L.push('Панель: ' + p.label + '.');
-  L.push('Статус: ' + STATUS_TXT[stVal] + (age ? ', ' + age + ' лет' : '') + (bmi ? ', ИМТ ' + fmt(bmi) : '') + '.' + (vol ? ' Объём мочи ' + fmt(vol) + ' мл.' : '') + (crea ? ' Креатинин ' + fmt(crea) + ' г/сут.' : ''));
-  L.push('');
-  L.push('1. Результаты вне референса:');
-  const ab = ANALYTES.filter(a => S[a.k] === 'low' || S[a.k] === 'high');
-  if (ab.length) ab.forEach(a => L.push('   – ' + a.name + ' (' + a.code + '): ' + fmt(val(a.k)) + ' ' + p.unit + ', ' + (S[a.k] === 'low' ? 'ниже' : 'выше') + ' референса ' + fmtR(state.refs[a.k]) + '.'));
-  else L.push('   нет.');
-  L.push('');
-  L.push('2. Расчётные индексы:');
-  const rl = [];
-  if (R.r216 != null) rl.push('2/16 ' + (r216def === 'sum' ? '[(2-OHE1+2-OHE2)/16α-OHE1]' : '[2-OHE1/16α-OHE1]') + ' = ' + fmt(R.r216) + (RR.r216 ? ' (ориентир ' + fmtR(RR.r216) + ')' : ''));
-  if (R.r24 != null) rl.push('2/4 = ' + fmt(R.r24) + (RR.r24 ? ' (ориентир ' + fmtR(RR.r24) + ')' : ''));
-  if (R.s2 != null) rl.push('Доли фазы I: 2-OH ' + fmt(R.s2) + ' %, 4-OH ' + fmt(R.s4) + ' %, 16α-OH ' + fmt(R.s16) + ' %');
-  if (R.m2 != null) rl.push('2-OMeE1/2-OHE1 = ' + fmt(R.m2) + (RR.m2 ? ' (ориентир ' + fmtR(RR.m2) + ')' : ''));
-  if (R.m2inv != null && RR.m2inv) rl.push('2-OHE1/2-OMeE1 = ' + fmt(R.m2inv) + ' (ориентир ' + fmtR(RR.m2inv) + ')');
-  if (R.m4inv != null && RR.m4inv) rl.push('4-OHE1/4-OMeE1 = ' + fmt(R.m4inv) + ' (ориентир ' + fmtR(RR.m4inv) + ')');
-  if (R.eq != null) rl.push('E3/(E1+E2) = ' + fmt(R.eq) + ' (ориентир выше 1,0)');
-  if (R.hp != null) rl.push('2-путь/исходные = ' + fmt(R.hp));
-  rl.length ? rl.forEach(t => L.push('   – ' + t + '.')) : L.push('   недостаточно данных.');
-  L.push('');
-  L.push('3. Заключение по профилю:');
-  const concl = [];
-  if (F.hiLoad) concl.push('повышенная эстрогенная нагрузка');
-  if (F.loLoad) concl.push(stVal === 'pm' ? 'низкие исходные эстрогены, соответствуют постменопаузе' : 'сниженные исходные эстрогены');
-  if (F.low216 || F.hi16) concl.push('смещение фазы I в сторону 16α-гидроксилирования');
-  if (F.hi4) concl.push('относительный перевес 4-OH пути');
-  if (F.lo2 && !F.low216) concl.push('сниженное 2-гидроксилирование');
-  if (F.lowMeth) concl.push('сниженная активность метилирования (COMT)');
-  if (F.loPD) concl.push('низкий прегнандиол в лютеиновую фазу (вероятная недостаточность прогестерона)');
-  if (F.lowEQ) concl.push('эстрогенный коэффициент ниже 1,0');
-  L.push('   ' + (concl.length ? concl.join('; ') + '.' : 'клинически значимых отклонений метаболизма эстрогенов не выявлено.'));
-  if (F.quality.length) L.push('   Замечания к сбору: ' + F.quality.join(' '));
-  B.forEach(b => L.push('   Примечание: ' + b));
-  L.push('');
+  const { F, R, RS, S, val, ctx, stVal, age, bmi, pk, B } = c;
   const G = c.G || state.genes;
-  const tested = GC.filter(v => G[v.id] != null);
-  if (tested.length) {
-    L.push('');
-    L.push('Генетика ферментов биотрансформации:');
-    tested.filter(v => G[v.id] >= 1).forEach(v => L.push('   – ' + v.label + ' (' + v.note.split(' · ')[0] + '): ' + gtText(v.id) + '. ' + v.effect.charAt(0).toUpperCase() + v.effect.slice(1) + '.'));
-    const norm = tested.filter(v => G[v.id] === 0).map(v => v.label);
-    if (norm.length) L.push('   Без вариантов риска: ' + norm.join(', ') + '.');
-    L.push('   Генотип отражает предрасположенность; фактическую активность ферментов показывает профиль метаболитов в моче.');
+  const p = PROFILES[pk];
+  const male = stVal === 'male', preg = ctx.cPreg, onco = ctx.cCancer || ctx.cTam;
+  const has = k => val(k) != null;
+  const ge = (id, n) => G[id] != null && G[id] >= (n || 1);
+  const tst = id => G[id] != null;
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const L = [];
+  const fio = $('scFio') ? $('scFio').value.trim() : '';
+  const date = ($('scDate') && $('scDate').value) ? new Date($('scDate').value).toLocaleDateString('ru-RU') : new Date().toLocaleDateString('ru-RU');
+
+  L.push('ЗАКЛЮЧЕНИЕ: БИОТРАНСФОРМАЦИЯ ЭСТРОГЕНОВ (проект от ' + date + ')');
+  L.push((fio ? fio + '. ' : '') + cap(STATUS_TXT[stVal]) + (age ? ', ' + age + ' лет' : '') + (bmi ? ', ИМТ ' + fmt(bmi) + ' кг/м²' : '') + '.');
+  const panel = pk === 'dutch' ? 'метаболиты эстрогенов в высушенной моче, DUTCH' : pk === 'custom' ? 'метаболиты эстрогенов в моче' : 'метаболиты эстрогенов в ' + (pk === 'helix' ? 'моче, ' : 'суточной моче, ') + p.label.split(' · ').slice(-1)[0];
+  L.push('Исследования: ' + panel + (GC.some(v => tst(v.id)) ? '; генотипирование ферментов биотрансформации' : '') + '.');
+  L.push('');
+  if (!ANALYTES.some(a => has(a.k)) && !GC.some(v => tst(v.id))) { L.push('Введите результаты анализа или загрузите бланк: заключение сформируется автоматически.'); return L.join('\n'); }
+
+  /* ---- I. Patient-specific features, step by step: phenotype + genotype ---- */
+  L.push('I. ОСОБЕННОСТИ БИОТРАНСФОРМАЦИИ');
+  const sec = [];
+  const verdict = (genes, bad, hasPh) => !genes.length ? '' : !hasPh ? ' Фенотип в моче не оценён.' : bad ? ' Генетическая предрасположенность реализуется.' : ' Предрасположенность сейчас компенсирована.';
+
+  // 1. synthesis and load
+  {
+    const gs = ['CYP19A1', 'CYP17A1'].filter(id => ge(id));
+    const hasPh = has('E1') || has('E2');
+    if (hasPh || gs.length) {
+      let t = hasPh ? (F.hiLoad ? 'эстрогенная нагрузка повышена' : F.loLoad ? (stVal === 'pm' ? 'эстрогены низкие, что соответствует постменопаузе' : 'эстрогены снижены') : 'эстрогенная нагрузка в норме') : 'уровни E1/E2 не определены';
+      if (gs.length) t += '; ' + gs.map(gShort).join(', ') + ': усиленный синтез эстрогенов из андрогенов';
+      if (F.obese || F.over) t += '; ИМТ ' + fmt(bmi) + ' дополнительно усиливает ароматизацию в жировой ткани';
+      sec.push('Синтез: ' + t + '.' + verdict(gs, F.hiLoad, hasPh));
+    }
   }
+  // 2. phase I
+  {
+    const gs = ['CYP1A1_462', 'CYP1A1_MspI', 'CYP1B1', 'CYP3A4'].filter(id => ge(id)).concat(G.CYP1A2 === 2 ? ['CYP1A2'] : []);
+    const hasPh = has('OH2E1') || has('OH16E1') || has('OH4E1');
+    if (hasPh || gs.length) {
+      const ph = [];
+      if (F.low216 || F.hi16) ph.push('гидроксилирование смещено в сторону пролиферативного 16α-пути' + (R.r216 != null ? ' (2/16 = ' + fmt(R.r216) + ')' : ''));
+      if (F.hi4) ph.push('повышена доля генотоксичного 4-OH пути' + (R.r24 != null ? ' (2/4 = ' + fmt(R.r24) + ')' : ''));
+      if (F.lo2 && !F.low216) ph.push('ослаблен защитный 2-OH путь');
+      if (F.lo16) ph.push('16α-путь низкий (значим для костной ткани)');
+      if (!ph.length && hasPh) ph.push('преобладает защитный 2-OH путь, баланс 2/16 и 2/4 сохранён');
+      if (!hasPh) ph.push('метаболиты фазы I не определены');
+      const gt = [];
+      if (ge('CYP1B1')) gt.push(gShort('CYP1B1') + ' (↑ 4-OH)');
+      if (ge('CYP1A1_462')) gt.push(gShort('CYP1A1_462') + ' (↑ 2-OH и катехолэстрогены)');
+      if (ge('CYP1A1_MspI')) gt.push(gShort('CYP1A1_MspI') + ' (возможно ↑ индуцибельность)');
+      if (G.CYP1A2 === 2) gt.push(gShort('CYP1A2') + ' (слабая индуцибельность 2-OH пути)');
+      if (ge('CYP3A4')) gt.push(gShort('CYP3A4'));
+      const bad = (ge('CYP1B1') && F.hi4) || (G.CYP1A2 === 2 && (F.low216 || F.lo2)) || ((ge('CYP1A1_462')) && F.hi4);
+      sec.push('Фаза I (гидроксилирование): ' + ph.join('; ') + (gt.length ? '. Генотип: ' + gt.join(', ') : '') + '.' + verdict(gs, bad, hasPh));
+    }
+  }
+  // 3. methylation
+  {
+    const gs = ['COMT', 'MTHFR677'].filter(id => ge(id)).concat(['MTHFR1298', 'MTR', 'MTRR'].filter(id => G[id] === 2));
+    const hasPh = R.m2 != null || R.m2inv != null || R.m4inv != null;
+    if (hasPh || gs.length) {
+      const ph = hasPh ? (F.lowMeth ? 'метилирование катехолэстрогенов снижено' + (R.m2 != null ? ' (2-OMe/2-OH = ' + fmt(R.m2) + ')' : '') : 'метилирование катехолэстрогенов достаточное') : 'метокси-метаболиты не определены';
+      const gt = gs.map(id => gShort(id) + (id === 'COMT' ? (G.COMT === 2 ? ' (активность COMT ↓ в 3–4 раза)' : ' (активность COMT ↓)') : id.startsWith('MTHFR') ? ' (↓ метилфолат и SAMe)' : ' (↓ B12-зависимое реметилирование)'));
+      sec.push('Фаза II, метилирование (COMT): ' + ph + (gt.length ? '. Генотип: ' + gt.join(', ') : '') + '.' + verdict(gs, F.lowMeth, hasPh));
+    }
+  }
+  // 4. quinone defence
+  {
+    const gs = ['GSTM1', 'GSTT1'].filter(id => G[id] === 2).concat(['GSTP1', 'NQO1'].filter(id => ge(id)));
+    if (gs.length) {
+      const gt = gs.map(id => G[id] === 2 && GCI[id].type === 'null' ? id + ' делеция' : gShort(id));
+      sec.push('Защита от хинонов (глутатион, NQO1): генетически ослаблена: ' + gt.join(', ') + '. ' + (F.hi4 ? 'На фоне перевеса 4-OH пути это приоритетная мишень.' : 'При сбалансированном 4-OH пути значение профилактическое.'));
+    }
+  }
+  // 5. conjugation and elimination
+  {
+    const gs = ['UGT1A1', 'SULT1A1'].filter(id => ge(id));
+    if (gs.length) sec.push('Конъюгация и выведение: ' + gs.map(id => gShort(id) + (id === 'UGT1A1' ? ' (↓ глюкуронидация)' : ' (↓ сульфатирование)')).join(', ') + '. ' + (F.hiLoad ? 'Замедленное выведение может вносить вклад в повышенную нагрузку.' : 'Выведение важно поддерживать питанием и регулярным стулом.'));
+  }
+  // 6. progesterone and receptors
+  {
+    const t = [];
+    if (has('PD') && (stVal === 'lut' || S.PD === 'low' || S.PD === 'high')) t.push(F.loPD ? 'прегнандиол снижен: вероятна недостаточность лютеиновой фазы и относительный избыток эстрогенов' : S.PD === 'low' ? 'прегнандиол ниже референса' : S.PD === 'high' ? 'прегнандиол выше референса' : 'прегнандиол в норме');
+    if (ge('PGR')) t.push(gShort('PGR') + ': ↓ чувствительность к прогестерону');
+    const er = ['ESR1_PvuII', 'ESR1_XbaI'].filter(id => ge(id));
+    if (er.length) t.push(er.map(gShort).join(', ') + ': ткани чувствительнее к эстрогенам');
+    if (t.length) sec.push('Прогестерон и рецепторы: ' + t.join('; ') + '.');
+  }
+  sec.forEach((t, i) => L.push((i + 1) + '. ' + t));
+  if (!sec.length) L.push('Недостаточно данных для оценки.');
+  geneCombos(G, bmi).forEach(t => L.push('Сочетание ' + t.split(':')[0] + ':' + t.split(':').slice(1).join(':').split('.')[0] + '.'));
+  if (F.quality.length) L.push('Ограничение: ' + F.quality.join(' '));
   L.push('');
-  L.push('4. Рекомендовано:');
+
+  /* ---- II. Targets ---- */
+  const T = {
+    load: F.hiLoad || ['CYP19A1', 'CYP17A1'].some(id => ge(id)),
+    p2: F.low216 || F.hi16 || F.lo2,
+    p4: F.hi4 || ge('CYP1B1'),
+    meth: F.lowMeth || ge('COMT') || ge('MTHFR677') || G.MTHFR1298 === 2 || G.MTR === 2 || G.MTRR === 2,
+    quin: F.hi4 || G.GSTM1 === 2 || G.GSTT1 === 2 || ge('GSTP1') || ge('NQO1'),
+    conj: F.hiLoad || ge('UGT1A1') || ge('SULT1A1'),
+    pd: F.loPD,
+    lowE: F.loLoad && stVal !== 'pm' && stVal !== 'pmhrt',
+    bone: F.lo16 || (F.loLoad && (stVal === 'pm' || male)),
+    weight: F.obese || F.over,
+    slow1A2: G.CYP1A2 === 2
+  };
+  const tgt = [];
+  const prof = ph => ph ? '' : ' (профилактически, по генотипу)';
+  if (T.p4 || T.quin) tgt.push('снизить образование и ускорить обезвреживание 4-OH-хинонов' + prof(F.hi4));
+  if (T.meth) tgt.push('поддержать метилирование (COMT)' + prof(F.lowMeth));
+  if (T.p2) tgt.push('сместить гидроксилирование в сторону 2-OH пути');
+  if (T.load) tgt.push('уменьшить эстрогенную нагрузку' + prof(F.hiLoad || F.obese || F.over));
+  if (T.conj) tgt.push('ускорить конъюгацию и выведение' + prof(F.hiLoad));
+  if (T.pd) tgt.push('восстановить лютеиновую фазу');
+  if (T.lowE) tgt.push('выяснить причину низких эстрогенов, не снижать их дополнительно');
+  if (T.bone) tgt.push('защитить костную ткань');
+  L.push('II. МИШЕНИ КОРРЕКЦИИ');
+  L.push(tgt.length ? tgt.map((t, i) => (i + 1) + ') ' + t).join('; ') + '.' : 'Значимых нарушений нет; поддерживающие меры.');
+  L.push('');
+
+  /* ---- III. Recommendations by step ---- */
+  L.push('III. РЕКОМЕНДАЦИИ');
+  const add = (arr, cond, t) => { if (cond && arr.indexOf(t) < 0) arr.push(t); };
+  const sleep = [], life = [], food = [], move = [], supp1 = [], supp2 = [], exam = [], ctrl = [], warn = [];
+
+  add(sleep, true, 'Сон 7–8 ч, отход ко сну до 23:00, полная темнота в спальне: мелатонин и циркадный ритм поддерживают печёночный метаболизм.');
+  add(sleep, true, 'Свет утром, без экранов за час до сна; ночные смены по возможности ограничить.');
+  add(sleep, T.meth, 'Управление стрессом (дыхательные практики, восстановление): катехоламины стресса конкурируют с эстрогенами за COMT.');
+  add(sleep, T.pd && !T.meth, 'Снижение стресса: хронический стресс и недосып нарушают овуляцию и выработку прогестерона.');
+
+  add(life, true, 'Алкоголь исключить или свести к минимуму: повышает эстрогены и нагружает печень.');
+  add(life, T.p4 || T.quin || ge('CYP1A1_462') || ge('CYP1A1_MspI'), 'Не курить и избегать пассивного курения: табачный дым индуцирует CYP1A1/CYP1B1.');
+  add(life, T.weight, 'Снижение массы тела (ИМТ ' + fmt(bmi) + ' кг/м²) на 5–10 %: жировая ткань — главный источник ароматазы' + (['CYP19A1', 'CYP17A1'].some(id => ge(id)) ? ', генотип усиливает этот эффект' : '') + '.');
+  add(life, T.load || T.p4 || T.quin, 'Меньше ксеноэстрогенов: не греть пищу в пластике, избегать бисфенолов, фталатов и парабенов в косметике.');
+  add(life, T.slow1A2, 'Кофе не больше 1–2 чашек в день (медленный CYP1A2).');
+
+  add(food, true, 'Средиземноморский тип питания: овощи, бобовые, цельные злаки, рыба, оливковое масло.');
+  add(food, T.p2 || T.p4 || T.quin || !T.lowE, 'Крестоцветные овощи ежедневно, 1–2 порции: брокколи и её ростки, брюссельская и белокочанная капуста, руккола.');
+  add(food, T.p2 || T.load, 'Молотое льняное семя 1–2 ст. л. (10–25 г) в день.');
+  add(food, true, 'Клетчатка 30–40 г/сут, вода 30 мл/кг, ежедневный стул: меньше обратного всасывания эстрогенов из кишечника.');
+  add(food, T.meth, 'Доноры метильных групп и фолаты: листовая зелень, яйца, бобовые, печень 1 раз в неделю.');
+  add(food, T.quin || ge('SULT1A1'), 'Серосодержащие продукты: лук, чеснок, яйца, крестоцветные.');
+  add(food, T.p4, 'Меньше пережаренного, копчёного и приготовленного на гриле мяса.');
+  add(food, T.p2, 'Жирная морская рыба 2–3 раза в неделю.');
+  add(food, T.weight, 'Умеренный дефицит калорий за счёт сахара и рафинированных углеводов; белок 1,2–1,5 г/кг.');
+  add(food, T.lowE, 'Достаточная калорийность и жиры в рационе; без длительных жёстких диет.');
+  add(food, T.bone, 'Белок 1,2 г/кг, кальций из пищи 1000–1200 мг/сут.');
+
+  add(move, true, 'Аэробная нагрузка 150–300 мин в неделю (ходьба, бег, велосипед, плавание).');
+  add(move, true, 'Силовые тренировки 2–3 раза в неделю: мышцы улучшают чувствительность к инсулину и снижают ароматизацию.');
+  add(move, T.bone, 'Ударные и силовые нагрузки для костной ткани.');
+  add(move, T.pd || T.lowE, 'Без перетренированности и энергодефицита: они подавляют овуляцию и эстрогены.');
+
+  if (preg) add(supp1, true, 'При беременности и лактации нутрицевтики для метаболизма эстрогенов не назначаются; фолаты и витамины по стандарту ведения беременности.');
+  else {
+    const mfol = ge('MTHFR677') || G.MTHFR1298 === 2;
+    add(supp1, T.meth, 'Магний (глицинат или цитрат) 200–400 мг/сут вечером.');
+    add(supp1, T.meth, (mfol ? 'Метилфолат 400–1000 мкг/сут (вместо фолиевой кислоты)' : 'Метилфолат 400–800 мкг/сут') + ', метилкобаламин 500–1000 мкг/сут, P5P 25–50 мг/сут.');
+    add(supp1, T.meth && (G.COMT === 2 || F.lowMeth), 'Бетаин (TMG) 500–1500 мг/сут как донор метильных групп.');
+    add(supp1, T.quin || T.p4, 'N-ацетилцистеин 600–1200 мг/сут.');
+    add(supp1, T.quin || T.p4, 'Сульфорафан (экстракт ростков брокколи с мирозиназой) 10–30 мг/сут.');
+    add(supp1, T.p2, 'Омега-3 (EPA+DHA) 1–2 г/сут.');
+    if (!T.lowE && !F.lo16) add(supp2, T.p2, 'DIM 100–300 мг/сут (или I3C 200–400 мг/сут, не вместе) курсом 8–12 недель' + (T.meth || T.quin ? ', после налаженного метилирования: DIM увеличивает поток катехолэстрогенов' : '') + '.');
+    add(supp2, T.p4, 'Ресвератрол 150–250 мг/сут.');
+    if (!T.lowE) add(supp2, T.load || T.conj, 'Кальций-D-глюкарат 500–1500 мг/сут.');
+    if (!supp1.length && supp2.length) { supp1.push(...supp2); supp2.length = 0; }
+  }
+
+  add(exam, T.p2, 'ТТГ, свТ4: гипотиреоз ослабляет 2-OH путь.');
+  add(exam, T.meth, 'Гомоцистеин, витамин B12 (голотранскобаламин), фолат' + (geneCombos(G, bmi).some(t => t.startsWith('COMT + MTHFR')) ? '; гомоцистеин держать ниже 10 мкмоль/л' : '') + '.');
+  add(exam, T.load || T.weight, 'Глюкоза, инсулин, HOMA-IR, окружность талии.');
+  add(exam, T.pd, 'Прогестерон в сыворотке на 7-й день после овуляции, УЗИ-мониторинг овуляции, пролактин, ТТГ.');
+  add(exam, T.lowE, male ? 'Эстрадиол, общий и свободный тестостерон, ЛГ, ГСПГ.' : 'ФСГ, ЛГ, эстрадиол на 2–5 день цикла, АМГ, пролактин.');
+  add(exam, ge('UGT1A1'), 'Билирубин общий и непрямой.');
+  add(exam, T.bone, 'Витамин D; денситометрия по показаниям.');
+  add(exam, T.p4 || T.load || ctx.cFam || ctx.cBenign, male ? 'ПСА и осмотр молочных желёз по возрасту.' : 'УЗИ молочных желёз или маммография по возрасту, УЗИ органов малого таза.');
+  add(exam, ctx.cFam, 'Консультация генетика (BRCA1/2).');
+  if (!GC.some(v => tst(v.id)) && (T.p4 || T.meth)) add(exam, true, 'Генотипирование: CYP1B1, COMT, MTHFR, GSTM1.');
+
+  add(ctrl, true, 'Повтор метаболитов эстрогенов через 8–12 недель (3 месяца) от начала коррекции, в ту же фазу цикла и в той же лаборатории.');
+  add(ctrl, T.meth, 'Гомоцистеин через 8–12 недель.');
+  add(ctrl, (G.CYP1B1 === 2) || geneCombos(G, bmi).length > 0, 'Далее профиль метаболитов раз в 6–12 месяцев.');
+
+  add(warn, onco, 'Гормонозависимый рак или антиэстрогенная терапия: нутрицевтики только по согласованию с онкологом (DIM снижает уровни активных метаболитов тамоксифена).');
+  add(warn, !preg && T.p2 && !T.lowE, 'DIM и I3C индуцируют CYP1A2: учитывать взаимодействия (теофиллин, клозапин, оланзапин, кофеин).');
+  add(warn, ctx.cDIM, 'DIM уже принимается: учесть дозу и длительность при оценке результата.');
+  add(warn, ctx.cCOC, 'Гормональная контрацепция искажает профиль: интерпретация ориентировочная.');
+  add(warn, T.meth, 'Высокие дозы кверцетина и экстракта зелёного чая (EGCG) ингибируют COMT.');
+  add(warn, T.lowE || F.lo16, 'DIM, I3C и кальций-D-глюкарат не назначать: дополнительно снижают эстрогены и 16α-путь.');
+
   let n = 0;
-  recs.forEach(r => {
-    if (r.sev === 'ok') return;
-    L.push('   ' + (++n) + ') ' + r.title + '.');
-    r.blocks.forEach(([t, items]) => items.forEach(i => L.push('      • ' + i.t)));
-    if (r.caution) L.push('      ! ' + r.caution);
-  });
-  if (!n) L.push('   поддерживающие меры по образу жизни; повтор по показаниям.');
+  const block = (title, arr) => { if (!arr.length) return; L.push((++n) + '. ' + title); arr.forEach(t => L.push('   – ' + t)); };
+  block('Сон и восстановление', sleep);
+  block('Образ жизни', life);
+  block('Питание', food);
+  block('Физическая активность', move);
+  block(supp2.length ? 'Нутрицевтики, этап 1 (первые 4 недели)' : 'Нутрицевтики', supp1);
+  block('Нутрицевтики, этап 2 (с 5-й недели, при хорошей переносимости)', supp2);
+  block('Дообследование', exam);
+  block('Контроль', ctrl);
+  block('Важно', warn);
   L.push('');
-  L.push('Интерпретация носит вспомогательный характер, референсы зависят от метода и лаборатории. Решение о назначениях принимает лечащий врач.');
+  L.push('Проект заключения носит вспомогательный характер. Назначения определяет лечащий врач' + ($('scDoc') && $('scDoc').value.trim() ? ': ' + $('scDoc').value.trim() : '') + '.');
   return L.join('\n');
 }
 
@@ -1364,7 +1520,7 @@ function init() {
   $('btnExample').addEventListener('click', loadExample);
   $('btnClear').addEventListener('click', () => {
     state.values = {}; state.genes = {};
-    ['age', 'bmi', 'vol', 'crea', 'scFio', 'scDate', 'scDoc'].forEach(id => { if ($(id)) $(id).value = ''; });
+    ['age', 'bmi', 'vol', 'crea', 'pFio', 'scFio', 'scDate', 'scDoc'].forEach(id => { if ($(id)) $(id).value = ''; });
     ['cCancer', 'cTam', 'cPreg', 'cCOC', 'cDIM', 'cHPV', 'cBenign', 'cFam'].forEach(id => { $(id).checked = false; });
     $('exampleTag').classList.add('hidden'); $('impStatus').classList.add('hidden'); $('impReview').classList.add('hidden');
     loadRefs(); buildTable(); buildGenes(); compute();
@@ -1518,7 +1674,8 @@ function showTab() {
   if (sch && window.Schema) window.Schema.render();
 }
 window.addEventListener('hashchange', showTab);
-['scFio', 'scDate', 'scDoc'].forEach(id => $(id).addEventListener('input', () => window.Schema && window.Schema.render()));
+['scFio', 'scDate', 'scDoc'].forEach(id => $(id).addEventListener('input', () => { if (id === 'scFio') $('pFio').value = $('scFio').value; compute(); if (window.Schema) window.Schema.render(); }));
+$('pFio').addEventListener('input', () => { $('scFio').value = $('pFio').value; compute(); if (window.Schema) window.Schema.render(); });
 $('btnPng').addEventListener('click', () => window.Schema.exportPng());
 $('btnPdf').addEventListener('click', () => window.Schema.exportPdf());
 init();
