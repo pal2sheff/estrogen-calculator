@@ -23,7 +23,12 @@ function node(x, y, w, h, title, sub, st, opts) {
   s += '<rect x="' + (x - w / 2) + '" y="' + (y - h / 2) + '" width="' + w + '" height="' + h + '" rx="9" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + (st === 'grey' ? 1.2 : 2) + '"/>';
   const tc = st === 'grey' ? C.muted : C.ink;
   const fs = title.length > 17 ? 13.5 : title.length > 14 ? 14.5 : 15.5;
-  if (sub) {
+  if (opts.sub2) {
+    const c2 = opts.sub2st ? (ST[opts.sub2st] || ST.grey)[1] : stroke;
+    s += '<text x="' + x + '" y="' + (y - 11) + '" text-anchor="middle" font-family="' + FONTC + '" font-size="' + fs + '" font-weight="600" fill="' + tc + '">' + esc(title) + '</text>';
+    s += '<text x="' + x + '" y="' + (y + 6) + '" text-anchor="middle" font-family="' + FONT + '" font-size="11.5" fill="' + (opts.subst ? (ST[opts.subst] || ST.grey)[1] : stroke) + '">' + esc(sub) + '</text>';
+    s += '<text x="' + x + '" y="' + (y + 21) + '" text-anchor="middle" font-family="' + FONT + '" font-size="11.5" fill="' + c2 + '">' + esc(opts.sub2) + '</text>';
+  } else if (sub) {
     s += '<text x="' + x + '" y="' + (y - 5) + '" text-anchor="middle" font-family="' + FONTC + '" font-size="' + fs + '" font-weight="600" fill="' + tc + '">' + esc(title) + '</text>';
     s += '<text x="' + x + '" y="' + (y + 14) + '" text-anchor="middle" font-family="' + FONT + '" font-size="12.5" fill="' + (st === 'grey' ? C.grey : stroke) + '">' + esc(sub) + '</text>';
   } else {
@@ -90,6 +95,13 @@ function buildSvg(meta) {
   const female = stVal !== 'male';
   const geneP = (ids, name) => { const n = maxOf(ids); const st = n == null ? 'grey' : ['ok', 'edge', 'bad'][n]; const id = ids.find(i => G[i] === n) || ids[0]; return [name + ' ' + (n == null ? 'н/и' : gtShort(id)), st]; };
   const fixed = name => [name, 'grey'];
+  const SLs = window.Saliva && window.Saliva.state.last;
+  const SL = SLs && SLs.F.any ? SLs : null;
+  const salHas = key => SL && SL.R[key] && SL.R[key].v != null;
+  const salSt = key => !salHas(key) ? 'grey' : stFromRange(SL.S[key], { low: 'bad', high: 'bad' });
+  const sw = st => ({ low: ' ↓', high: ' ↑', edge: ' · граница', ok: ' · норма' }[st] || '');
+  const salTxt = key => { const r = SL.R[key]; return (r.q || '') + fmt(r.v) + ' ' + r.unit + sw(SL.S[key]); };
+  const salNode = (x, y, w, h, title, key, conf) => salHas(key) ? node(x, y, w, h, title, salTxt(key), salSt(key), { confirmed: conf }) : node(x, y, w, h, title, 'не измеряется', 'grey');
 
   let s = '<svg xmlns="http://www.w3.org/2000/svg" id="schemaSvg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="Схема стероидогенеза и метаболизма эстрогенов пациента">';
   s += '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + C.line + '"/></marker>' +
@@ -102,11 +114,12 @@ function buildSvg(meta) {
   const pat = [meta.fio ? meta.fio : 'ФИО не указано', meta.age ? meta.age + ' лет' : '', K.STATUS_TXT[stVal]].filter(Boolean).join(' · ');
   s += label(30, 59, pat, 15, '#ffffff', 'start', 600);
   s += label(W - 30, 33, 'Анализ: ' + (meta.date || 'дата не указана') + (meta.doctor ? ' · Врач: ' + meta.doctor : ''), 14, '#ffffff', 'end', 500);
-  s += label(W - 30, 59, K.PROFILES[pk].label.split(' (')[0], 12.5, '#f1dce9', 'end', 400);
+  s += label(W - 30, 59, K.PROFILES[pk].label.split(' (')[0] + (SL ? ' · стероиды в слюне' : ''), 12.5, '#f1dce9', 'end', 400);
 
   /* section titles */
   s += label(30, 108, 'СИНТЕЗ СТЕРОИДНЫХ ГОРМОНОВ', 13, C.muted, 'start', 700);
   s += label(940, 108, 'МЕТАБОЛИЗМ ЭСТРОГЕНОВ', 13, C.muted, 'start', 700);
+  if (SL) s += label(318, 108, '· гормоны синтеза: слюна, свободные фракции', 11.5, C.grey, 'start', 600);
   s += '<line x1="912" y1="96" x2="912" y2="880" stroke="' + C.line + '" stroke-width="1" stroke-dasharray="3 5"/>';
   s += label(245, 135, 'минералокортикоиды', 11.5, C.grey, 'middle');
   s += label(435, 135, 'глюкокортикоиды', 11.5, C.grey, 'middle');
@@ -152,24 +165,49 @@ function buildSvg(meta) {
 
   // nodes
   s += node(x1, y0, NW, NH, 'Холестерин', 'не измеряется', g);
-  s += node(x1, y1, NW, NH, 'Прегненолон', 'не измеряется', g);
+  s += salNode(x1, y1, NW, NH, 'Прегненолон', 'PREG');
   s += node(x2, y1, NW, NH, '17-OH-прегненолон', 'не измеряется', g);
-  s += node(x3, y1, NW, NH, 'ДГЭА', 'не измеряется', g);
+  s += salNode(x3, y1, NW, NH, 'ДГЭА', 'DHEA');
   const pgSt = v('PD') == null ? 'grey' : stFromRange(S.PD, { low: stVal === 'lut' ? 'bad' : 'edge', high: 'edge' });
-  s += node(x1, y2, NW, NH, 'Прогестерон', 'не измеряется', g);
+  s += salNode(x1, y2, NW, NH, 'Прогестерон', 'P4', G.PGR >= 1 && salHas('P4') && SL.S.P4 === 'low');
   s += node(xPD, y2, 124, NH, 'Прегнандиол', v('PD') == null ? 'не измерен' : fmt(v('PD')) + word(S.PD), pgSt, { confirmed: G.PGR >= 1 && F.loPD });
-  s += node(x2, y2, NW, NH, '17-OH-прогестерон', 'не измеряется', g);
-  s += node(x3, y2, NW, NH, 'Андростендион', 'не измеряется', g);
-  s += node(x4, y2, NW, NH, 'Тестостерон', 'не измеряется', g);
+  s += salNode(x2, y2, NW, NH, '17-OH-прогестерон', 'OHP');
+  s += salNode(x3, y2, NW, NH, 'Андростендион', 'A4');
+  s += salNode(x4, y2, NW, NH, 'Тестостерон', 'T');
   s += node(x1, y3, NW, NH, 'ДОК', 'дезоксикортикостерон', g);
   s += node(x2, y3, NW, NH, '11-дезоксикортизол', 'не измеряется', g);
   const loadConf = (G.CYP19A1 >= 1 || G.CYP17A1 >= 1) && F.hiLoad;
   const e1St = v('E1') == null ? 'grey' : stFromRange(S.E1, { low: stVal === 'pm' ? 'ok' : 'edge', high: 'bad' });
   const e2St = v('E2') == null ? 'grey' : stFromRange(S.E2, { low: stVal === 'pm' ? 'ok' : 'edge', high: 'bad' });
   s += node(x3, y3, NW, NH, 'Эстрон (E1)', v('E1') == null ? 'не измерен' : fmt(v('E1')) + word(S.E1), e1St, { confirmed: loadConf && S.E1 === 'high' });
-  s += node(x4, y3, NW, NH, 'Эстрадиол (E2)', v('E2') == null ? 'не измерен' : fmt(v('E2')) + word(S.E2), e2St, { confirmed: loadConf && S.E2 === 'high' });
+  if (salHas('E2') && v('E2') != null) s += node(x4, y3, NW, NH + 16, 'Эстрадиол (E2)', 'моча ' + fmt(v('E2')) + sw(S.E2), worst(e2St, salSt('E2')), { confirmed: loadConf && S.E2 === 'high', subst: e2St, sub2: 'слюна ' + salTxt('E2'), sub2st: salSt('E2') });
+  else if (salHas('E2')) s += node(x4, y3, NW, NH, 'Эстрадиол (E2)', salTxt('E2'), salSt('E2'));
+  else s += node(x4, y3, NW, NH, 'Эстрадиол (E2)', v('E2') == null ? 'не измерен' : fmt(v('E2')) + word(S.E2), e2St, { confirmed: loadConf && S.E2 === 'high' });
   s += node(x1, y4, NW, NH, 'Кортикостерон', 'не измеряется', g);
-  s += node(x2, y4, NW, NH, 'Кортизол', 'не измеряется', g);
+  const cK = SL ? SL.cm : null;
+  s += cK ? node(x2, y4, NW, NH, 'Кортизол', (cK === 'C1' ? 'утро ' : '') + salTxt(cK), salSt(cK)) : node(x2, y4, NW, NH, 'Кортизол', 'не измеряется', g);
+  s += vs(x2, y4, y5) + enzV(x2, y4, y5, 'HSD11B2');
+  s += salNode(x2, y5, NW, NH, 'Кортизон', 'CORTISONE');
+  if (SL && SL.RV.ff) s += label(x2, y5 + NH / 2 + 15, 'кортизол/кортизон ' + fmt(SL.RV.ff.val), 11, SL.RV.ff.st === 'high' ? C.bad : C.muted, 'middle', 600);
+  if (SL && SL.RV.pge2) s += label(x1 + 12, y2 + 42, 'Pg/E2 ' + fmt(SL.RV.pge2.val), 11, SL.RV.pge2.st === 'low' ? C.bad : C.muted, 'start', 600);
+  // diurnal cortisol curve (saliva)
+  if (SL && SL.curve.length >= 2) {
+    const px0 = 60, px1 = 470, py0 = 816, py1 = 878;
+    const pts = ['C1', 'C2', 'C3', 'C4'].map((key, i) => ({ key, i, r: SL.R[key] })).filter(p => p.r.v != null);
+    const toNg = (val, r) => r.unit === 'нг/мл' ? val : r.unit === 'пг/мл' ? val / 1000 : r.unit === 'нмоль/л' ? val * 0.36246 : r.unit === 'пмоль/л' ? val * 0.00036246 : val;
+    let mx = 0; pts.forEach(p => { mx = Math.max(mx, toNg(p.r.v, p.r), p.r.hi != null ? toNg(p.r.hi, p.r) : 0); }); mx = mx * 1.15 || 1;
+    const X = i => px0 + 30 + i * (px1 - px0 - 60) / 3, Y = val => py1 - (py1 - py0) * Math.min(1, val / mx);
+    s += label(px0 - 20, 786, 'Суточный ритм кортизола, слюна (нг/мл)', 12, C.ink, 'start', 700);
+    s += '<line x1="' + px0 + '" y1="' + py1 + '" x2="' + px1 + '" y2="' + py1 + '" stroke="' + C.line + '"/>';
+    pts.forEach(p => { if (p.r.hi != null) { const lo = p.r.lo != null ? toNg(p.r.lo, p.r) : 0, hi2 = toNg(p.r.hi, p.r); s += '<rect x="' + (X(p.i) - 13) + '" y="' + Y(hi2) + '" width="26" height="' + Math.max(2, Y(lo) - Y(hi2)) + '" rx="3" fill="' + C.okSoft + '" stroke="' + C.ok + '" stroke-width="0.8"/>'; } });
+    s += '<polyline points="' + pts.map(p => X(p.i) + ',' + Y(toNg(p.r.v, p.r)).toFixed(1)).join(' ') + '" fill="none" stroke="' + C.accent + '" stroke-width="2"/>';
+    pts.forEach(p => {
+      const stp = salSt(p.key), col = stp === 'grey' || stp === 'neutral' ? C.accent : ST[stp][1], yy = Y(toNg(p.r.v, p.r));
+      s += '<circle cx="' + X(p.i) + '" cy="' + yy.toFixed(1) + '" r="5" fill="' + col + '" stroke="#fff" stroke-width="1.5"/>';
+      s += label(X(p.i), yy - 9, fmt(p.r.v), 11, col, 'middle', 700);
+    });
+    ['утро', 'полдень', 'вечер', 'ночь'].forEach((t, i) => { s += label(X(i), py1 + 14, t, 10.5, C.muted, 'middle'); });
+  }
   s += node(x1, y5, NW, NH, 'Альдостерон', 'не измеряется', g);
   // receptors
   const pEsr = geneP(['ESR1_PvuII', 'ESR1_XbaI'], 'ESR1');
@@ -360,7 +398,8 @@ function buildSvg(meta) {
   s += label(lx + 34, fy + 4, 'генотип подтверждён метаболитами', 13, C.ink);
   s += label(W - 30, fy + 4, 'н/и — не исследовано', 12, C.muted, 'end');
 
-  const fnd = (L.findings || []).slice(0, 8);
+  const estF = L.findings || [], salF = SL ? SL.findings.filter(t => !/в пределах референсов/.test(t)) : [];
+  const fnd = estF.slice(0, salF.length ? Math.max(4, 8 - salF.length) : 8).concat(salF).slice(0, 8);
   s += label(30, fy + 42, 'Основные выводы', 15, C.accent, 'start', 700, FONTC);
   if (!fnd.length) s += label(30, fy + 68, 'Значимых отклонений не выявлено.', 13, C.ink);
   fnd.forEach((t, i) => {

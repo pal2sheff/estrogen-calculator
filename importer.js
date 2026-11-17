@@ -147,7 +147,8 @@ async function ocrAndParse(sources, status, onStatus) {
       found[k] = Object.assign({}, pick, same ? { conf: 'ok' } : { conf: 'check', alt: (pick.value === x.value ? y : x).value });
     } else found[k] = Object.assign({}, x || y, { conf: 'single' });
   });
-  return { found, genes, format: countFound(a) >= countFound(b) ? a.format : b.format, patient: Object.assign({}, b.patient, a.patient), text: a.text + '\n\n— второй проход —\n' + b.text, ocr: true };
+  const salivaPasses = window.Saliva && window.Saliva.looksLikeSaliva([la, lb]) && window.Saliva.count(window.Saliva.mergePasses([la, lb], status, null)) >= 2 && Object.keys(found).filter(k => k !== 'CREA' && k !== 'VOL').length < 2 ? [la, lb] : null;
+  return { found, genes, format: countFound(a) >= countFound(b) ? a.format : b.format, patient: Object.assign({}, b.patient, a.patient), text: a.text + '\n\n— второй проход —\n' + b.text, ocr: true, salivaPasses };
 }
 function fileToImage(file) {
   return new Promise((res, rej) => {
@@ -473,6 +474,8 @@ async function readFile(file, status, onStatus) {
     const parsed = parseReport(lines, status);
     parsed.genes = parseGenetics(lines);
     const nFound = Object.keys(parsed.found).filter(k => k !== 'CREA' && k !== 'VOL').length;
+    const salN = window.Saliva ? window.Saliva.count(window.Saliva.mergePasses([lines], status, null)) : 0;
+    if (salN >= 2 && nFound < 2 && window.Saliva.looksLikeSaliva([lines])) return Object.assign(parsed, { method, pages: res.pages, salivaPasses: [lines] });
     if (nFound >= 2 || Object.keys(parsed.genes).length >= 2) return Object.assign(parsed, { method, pages: res.pages });
     // Scanned PDF: no usable text layer
     onStatus('Текстового слоя нет или он неполный: распознаю как скан…');
@@ -485,5 +488,24 @@ async function readFile(file, status, onStatus) {
   catch (e) { throw new Error('распознавание изображений в этом окне не запустилось (' + (e.message || e) + '). Загрузите PDF из личного кабинета лаборатории или введите значения вручную'); }
 }
 
-window.LabImport = { readFile, parseReport, parseGenetics, _findMatches: findMatches };
+/* Generic: text lines of a PDF / image (one pass for a text layer, two OCR passes for scans and photos). */
+async function readLines(file, onStatus, enough) {
+  const isPdf = /pdf$/i.test(file.type) || /\.pdf$/i.test(file.name);
+  const isImg = /^image\//.test(file.type) || /\.(png|jpe?g|webp|bmp|gif)$/i.test(file.name);
+  if (!isPdf && !isImg) throw new Error('Поддерживаются PDF и изображения (JPG, PNG). Файл «' + file.name + '» не подходит');
+  let sources;
+  if (isPdf) {
+    onStatus('Открываю PDF…');
+    const res = await pdfToText(new Uint8Array(await file.arrayBuffer()), onStatus);
+    if (!enough || enough([res.lines])) return { passes: [res.lines], method: 'текстовый слой PDF', pages: res.pages };
+    onStatus('Текстового слоя нет или он неполный: распознаю как скан…');
+    sources = await pdfPagesToCanvases(res.doc, 4);
+  } else sources = [await fileToImage(file)];
+  try {
+    const la = await ocrImages(sources, onStatus, 4, false), lb = await ocrImages(sources, onStatus, 6, true);
+    return { passes: [la, lb], method: isPdf ? 'распознавание скана (OCR)' : 'распознавание фото (OCR)', pages: sources.length };
+  } catch (e) { throw new Error('распознавание изображений в этом окне не запустилось (' + (e.message || e) + '). Загрузите PDF из личного кабинета лаборатории или введите значения вручную'); }
+}
+
+window.LabImport = { readFile, readLines, parseReport, parseGenetics, _findMatches: findMatches };
 })();

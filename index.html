@@ -241,6 +241,34 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
   textarea#concl { min-height: 260px; font-size: 13px; }
 }
 @media (max-width: 360px) { .chips { grid-template-columns: 1fr; } }
+
+/* saliva */
+#tblSal td { vertical-align: middle; }
+#tblSal select.u { width: 82px; padding: 5px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-size: 13px; }
+#tblSal td.st { white-space: nowrap; }
+#tblSal td.br .bar { width: 64px; }
+#tblSal input.v { width: 72px; }
+#tblSal input.r { width: 54px; }
+#tblSal th, #tblSal td { padding-left: 5px; padding-right: 5px; }
+#salImpReview td.src { font-size: 12px; color: var(--muted); max-width: 300px; font-family: var(--font-mono); }
+textarea#salConcl { width: 100%; min-height: 300px; font-family: var(--font-mono); font-size: 13px; line-height: 1.55; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 12px; resize: vertical; }
+#salFind { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+@media (max-width: 720px) {
+  #tblSal thead { display: none; }
+  #tblSal, #tblSal tbody { display: block; }
+  #tblSal tr.grp, #tblSal tr.grp td { display: block; padding: 10px 4px 6px; border-bottom: 0; }
+  #tblSal tr[data-k] { display: grid; grid-template-columns: auto auto 1fr; grid-template-areas: "name name name" "val unit st" "ref ref ref" "bar bar bar"; gap: 6px 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  #tblSal tr[data-k] td { border: 0; padding: 0; }
+  #tblSal td:nth-child(1) { grid-area: name; }
+  #tblSal td:nth-child(2) { grid-area: val; }
+  #tblSal td:nth-child(3) { grid-area: unit; }
+  #tblSal td:nth-child(4) { grid-area: ref; }
+  #tblSal td.st { grid-area: st; text-align: right; }
+  #tblSal td.br { grid-area: bar; }
+  #tblSal td.br .bar { width: 100%; }
+  #tblSal select.u { font-size: 16px; }
+  textarea#salConcl { min-height: 260px; }
+}
 </style>
 </head>
 <body>
@@ -252,6 +280,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
 
 <nav class="tabs" role="tablist" aria-label="Разделы">
   <a href="#calc" role="tab" id="tabBtnCalc" class="tab active" aria-selected="true">Калькулятор</a>
+  <a href="#saliva" role="tab" id="tabBtnSaliva" class="tab" aria-selected="false">Слюна</a>
   <a href="#schema" role="tab" id="tabBtnSchema" class="tab" aria-selected="false">Схема</a>
 </nav>
 
@@ -432,6 +461,57 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
 
 </div>
 
+<div id="tabSaliva" class="tabpane hidden">
+<div class="grid">
+  <div style="display:grid; gap:20px;">
+    <section class="card" aria-labelledby="h-sal-imp">
+      <header><h2 id="h-sal-imp">Загрузить бланк: стероиды в слюне</h2><span class="hint">Гемотест 2.80, 2.79, 2.75 и аналогичные панели: PDF, скан или фото</span></header>
+      <div class="drop" id="salDrop">
+        <div class="btns"><label class="btn primary" for="salFile" style="cursor:pointer;">Выбрать файл</label><input type="file" id="salFile" accept="application/pdf,.pdf,image/*" class="hidden"></div>
+        <p>или перетащите файл сюда. Файл обрабатывается только в вашем браузере.</p>
+      </div>
+      <div class="imp-status hidden" id="salImpStatus" role="status" aria-live="polite"></div>
+      <div id="salImpReview" class="hidden" style="display:grid; gap:10px;">
+        <div class="tablewrap"><table><thead><tr><th><span class="hidden">Взять</span></th><th>Показатель</th><th>Найдено</th><th>Референс с бланка</th><th>Строка в документе</th></tr></thead><tbody id="salImpRows"></tbody></table></div>
+        <label style="display:flex; gap:8px; font-size:14px; align-items:center;"><input type="checkbox" id="salUseRefs" checked style="accent-color:var(--accent);"> Взять референсы с бланка</label>
+        <div class="btns"><button class="btn primary" type="button" id="salApply">Подставить</button><button class="btn" type="button" id="salCancel">Отмена</button></div>
+        <details><summary style="cursor:pointer; font-size:13px; color:var(--muted);">Показать распознанный текст</summary><textarea id="salImpText" readonly style="width:100%; min-height:200px; margin-top:8px; font-family:var(--font-mono); font-size:12px; background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:8px;"></textarea></details>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-sal-in">
+      <header><h2 id="h-sal-in">Стероидный профиль слюны</h2>
+        <div class="btns"><button class="btn" id="salClear" type="button">Очистить</button></div>
+      </header>
+      <p class="hint" style="margin:0;">Пол, фаза цикла, возраст и ФИО общие с вкладкой «Калькулятор». Референсы зависят от лаборатории, метода и времени сбора: переносите их с бланка.</p>
+      <div class="note warn hidden" id="salNoRef">Для части показателей не указан референс: оценка по ним не проводится.</div>
+      <div class="tablewrap">
+        <table id="tblSal">
+          <thead><tr><th>Показатель</th><th>Результат</th><th>Ед.</th><th>Референс (от – до)</th><th>Оценка</th><th aria-label="Положение в диапазоне"></th></tr></thead>
+          <tbody id="salRows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div style="display:grid; gap:20px; align-content:start;">
+    <section class="card" aria-labelledby="h-sal-f">
+      <header><h2 id="h-sal-f">Выводы</h2></header>
+      <ul id="salFind"></ul>
+    </section>
+    <section class="card" aria-labelledby="h-sal-r">
+      <header><h2 id="h-sal-r">Соотношения</h2></header>
+      <div class="tablewrap"><table id="tblSalRatio"><thead><tr><th>Индекс</th><th>Значение</th><th>Ориентир</th><th>Оценка</th></tr></thead><tbody id="salRatios"></tbody></table></div>
+    </section>
+  </div>
+</div>
+<section class="card" aria-labelledby="h-sal-c" style="margin-top:20px;">
+  <header><h2 id="h-sal-c">Проект заключения</h2><div class="btns"><button class="btn primary" id="salCopy" type="button">Скопировать текст</button><span id="salCopyMsg" style="font-size:13px; color:var(--ok);"></span></div></header>
+  <p class="hint" style="margin:0;">Общее заключение: метаболиты эстрогенов, генетика и стероиды слюны вместе.</p>
+  <textarea id="salConcl" aria-label="Текст заключения" spellcheck="false" readonly></textarea>
+</section>
+</div>
+
 <div id="tabSchema" class="tabpane hidden">
   <section class="card" aria-labelledby="h-schema">
     <header><h2 id="h-schema">Схема стероидогенеза пациента</h2>
@@ -451,6 +531,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
 <script src="genes.js"></script>
 <script src="schema.js"></script>
 <script src="importer.js"></script>
+<script src="saliva.js"></script>
 <script>
 (function () {
 'use strict';
@@ -896,7 +977,9 @@ function compute() {
   $('recs').innerHTML = recs.map(renderRec).join('');
 
   /* ---------- Conclusion ---------- */
-  $('concl').value = buildConclusion({ F, R, RS, RR, S, val, ctx, stVal, age, bmi, pk, recs, r216def, crea, vol, B, G: state.genes });
+  const SC = window.Saliva ? (window.Saliva.compute(), window.Saliva.contrib(ctx)) : null;
+  $('concl').value = buildConclusion({ F, R, RS, RR, S, val, ctx, stVal, age, bmi, pk, recs, r216def, crea, vol, B, G: state.genes, SC });
+  if ($('salConcl')) $('salConcl').value = $('concl').value;
 
   /* ---------- Conversion ---------- */
   buildConversion(crea, pk);
@@ -1239,7 +1322,7 @@ function gShort(id) {
   return v.gene + ' ' + (m ? m[1] : o.trim());
 }
 function buildConclusion(c) {
-  const { F, R, RS, S, val, ctx, stVal, age, bmi, pk, B } = c;
+  const { F, R, RS, S, val, ctx, stVal, age, bmi, pk, B, SC } = c;
   const G = c.G || state.genes;
   const p = PROFILES[pk];
   const male = stVal === 'male', preg = ctx.cPreg, onco = ctx.cCancer || ctx.cTam;
@@ -1251,15 +1334,16 @@ function buildConclusion(c) {
   const fio = $('scFio') ? $('scFio').value.trim() : '';
   const date = ($('scDate') && $('scDate').value) ? new Date($('scDate').value).toLocaleDateString('ru-RU') : new Date().toLocaleDateString('ru-RU');
 
-  L.push('ЗАКЛЮЧЕНИЕ: БИОТРАНСФОРМАЦИЯ ЭСТРОГЕНОВ (проект от ' + date + ')');
+  const hasEst = ANALYTES.some(a => has(a.k));
+  L.push('ЗАКЛЮЧЕНИЕ: ' + (SC && hasEst ? 'СТЕРОИДНЫЙ ПРОФИЛЬ И БИОТРАНСФОРМАЦИЯ ЭСТРОГЕНОВ' : SC ? 'СТЕРОИДНЫЙ ПРОФИЛЬ СЛЮНЫ' : 'БИОТРАНСФОРМАЦИЯ ЭСТРОГЕНОВ') + ' (проект от ' + date + ')');
   L.push((fio ? fio + '. ' : '') + cap(STATUS_TXT[stVal]) + (age ? ', ' + age + ' лет' : '') + (bmi ? ', ИМТ ' + fmt(bmi) + ' кг/м²' : '') + '.');
   const panel = pk === 'dutch' ? 'метаболиты эстрогенов в высушенной моче, DUTCH' : pk === 'custom' ? 'метаболиты эстрогенов в моче' : 'метаболиты эстрогенов в ' + (pk === 'helix' ? 'моче, ' : 'суточной моче, ') + p.label.split(' · ').slice(-1)[0];
-  L.push('Исследования: ' + panel + (GC.some(v => tst(v.id)) ? '; генотипирование ферментов биотрансформации' : '') + '.');
+  L.push('Исследования: ' + [hasEst || !SC ? panel : '', SC ? 'стероиды в слюне (свободные фракции)' : '', GC.some(v => tst(v.id)) ? 'генотипирование ферментов биотрансформации' : ''].filter(Boolean).join('; ') + '.');
   L.push('');
-  if (!ANALYTES.some(a => has(a.k)) && !GC.some(v => tst(v.id))) { L.push('Введите результаты анализа или загрузите бланк: заключение сформируется автоматически.'); return L.join('\n'); }
+  if (!hasEst && !GC.some(v => tst(v.id)) && !SC) { L.push('Введите результаты анализа или загрузите бланк: заключение сформируется автоматически.'); return L.join('\n'); }
 
   /* ---- I. Patient-specific features, step by step: phenotype + genotype ---- */
-  L.push('I. ОСОБЕННОСТИ БИОТРАНСФОРМАЦИИ');
+  L.push(SC && hasEst ? 'I. ОСОБЕННОСТИ СТЕРОИДОГЕНЕЗА И БИОТРАНСФОРМАЦИИ ЭСТРОГЕНОВ' : SC && !GC.some(v => tst(v.id)) ? 'I. ОСОБЕННОСТИ СТЕРОИДНОГО ПРОФИЛЯ' : 'I. ОСОБЕННОСТИ БИОТРАНСФОРМАЦИИ');
   const sec = [];
   const verdict = (genes, bad, hasPh) => !genes.length ? '' : !hasPh ? ' Фенотип в моче не оценён.' : bad ? ' Генетическая предрасположенность реализуется.' : ' Предрасположенность сейчас компенсирована.';
 
@@ -1328,6 +1412,7 @@ function buildConclusion(c) {
     if (er.length) t.push(er.map(gShort).join(', ') + ': ткани чувствительнее к эстрогенам');
     if (t.length) sec.push('Прогестерон и рецепторы: ' + t.join('; ') + '.');
   }
+  if (SC) sec.unshift('Стероиды в слюне. ' + SC.lines.join(' '));
   sec.forEach((t, i) => L.push((i + 1) + '. ' + t));
   if (!sec.length) L.push('Недостаточно данных для оценки.');
   geneCombos(G, bmi).forEach(t => L.push('Сочетание ' + t.split(':')[0] + ':' + t.split(':').slice(1).join(':').split('.')[0] + '.'));
@@ -1358,6 +1443,7 @@ function buildConclusion(c) {
   if (T.pd) tgt.push('восстановить лютеиновую фазу');
   if (T.lowE) tgt.push('выяснить причину низких эстрогенов, не снижать их дополнительно');
   if (T.bone) tgt.push('защитить костную ткань');
+  if (SC) SC.targets.forEach(t => { if (tgt.indexOf(t) < 0) tgt.push(t); });
   L.push('II. МИШЕНИ КОРРЕКЦИИ');
   L.push(tgt.length ? tgt.map((t, i) => (i + 1) + ') ' + t).join('; ') + '.' : 'Значимых нарушений нет; поддерживающие меры.');
   L.push('');
@@ -1421,7 +1507,13 @@ function buildConclusion(c) {
   add(exam, ctx.cFam, 'Консультация генетика (BRCA1/2).');
   if (!GC.some(v => tst(v.id)) && (T.p4 || T.meth)) add(exam, true, 'Генотипирование: CYP1B1, COMT, MTHFR, GSTM1.');
 
-  add(ctrl, true, 'Повтор метаболитов эстрогенов через 8–12 недель (3 месяца) от начала коррекции, в ту же фазу цикла и в той же лаборатории.');
+  add(ctrl, hasEst, 'Повтор метаболитов эстрогенов через 8–12 недель (3 месяца) от начала коррекции, в ту же фазу цикла и в той же лаборатории.');
+  if (SC) {
+    const M = { sleep, life, food, move, supp1, exam, ctrl, warn };
+    const TOPIC = [/^магний/i, /омега-3/i, /перетрен/i, /массы тела/i, /дыхан|управление стресс/i, /^ттг/i, /овуляц/i];
+    const dup = (arr, t) => TOPIC.some(re => re.test(t) && arr.some(x => re.test(x)));
+    Object.keys(M).forEach(key => (SC[key] || []).forEach(t => { if (preg && key === 'supp1') return; if (!dup(M[key], t)) add(M[key], true, t); }));
+  }
   add(ctrl, T.meth, 'Гомоцистеин через 8–12 недель.');
   add(ctrl, (G.CYP1B1 === 2) || geneCombos(G, bmi).length > 0, 'Далее профиль метаболитов раз в 6–12 месяцев.');
 
@@ -1523,7 +1615,8 @@ function init() {
     ['age', 'bmi', 'vol', 'crea', 'pFio', 'scFio', 'scDate', 'scDoc'].forEach(id => { if ($(id)) $(id).value = ''; });
     ['cCancer', 'cTam', 'cPreg', 'cCOC', 'cDIM', 'cHPV', 'cBenign', 'cFam'].forEach(id => { $(id).checked = false; });
     $('exampleTag').classList.add('hidden'); $('impStatus').classList.add('hidden'); $('impReview').classList.add('hidden');
-    loadRefs(); buildTable(); buildGenes(); compute();
+    loadRefs(); buildTable(); buildGenes();
+    if (window.Saliva) window.Saliva.clearAll(); else compute();
   });
   $('btnCopy').addEventListener('click', async () => {
     const ta = $('concl');
@@ -1599,6 +1692,12 @@ async function impHandle(file) {
     const st = $('status').value === 'pmhrt' ? 'lut' : $('status').value;
     const res = await window.LabImport.readFile(file, st, m => impSetStatus(m, 'busy'));
     res.fileName = file.name;
+    if (res.salivaPasses && window.Saliva) {
+      impSetStatus('Это бланк стероидов в слюне: он открыт на вкладке «Слюна».', '');
+      location.hash = '#saliva';
+      window.Saliva.receive(res.salivaPasses, file.name, res.method);
+      return;
+    }
     impData = res;
     const n = Object.keys(res.found).filter(k => k !== 'CREA' && k !== 'VOL').length, ng = Object.keys(res.genes || {}).length;
     const parts = [n ? n + ' показ.' : '', ng ? ng + ' генотип.' : ''].filter(Boolean).join(' и ');
@@ -1665,13 +1764,14 @@ function impInit() {
   ['impProfile', 'impStatusSel'].forEach(id => $(id).addEventListener('change', () => { const pv = $('impProfile').value, sv = $('impStatusSel').value; impData.format = pv; impRender(); $('impStatusSel').value = sv; }));
   $('impCancel').addEventListener('click', () => { $('impReview').classList.add('hidden'); $('impStatus').classList.add('hidden'); impData = null; });
 }
-window.__calc = { PROFILES, classify, buildRecs, state, GCI, gtOptions, fmt, geneCombos, STATUS_TXT };
+window.__calc = { PROFILES, classify, buildRecs, state, GCI, gtOptions, fmt, geneCombos, STATUS_TXT, compute, bar, pill };
 function showTab() {
-  const sch = location.hash === '#schema';
-  $('tabCalc').classList.toggle('hidden', sch); $('tabSchema').classList.toggle('hidden', !sch);
-  $('tabBtnCalc').classList.toggle('active', !sch); $('tabBtnSchema').classList.toggle('active', sch);
-  $('tabBtnCalc').setAttribute('aria-selected', String(!sch)); $('tabBtnSchema').setAttribute('aria-selected', String(sch));
-  if (sch && window.Schema) window.Schema.render();
+  const t = location.hash === '#schema' ? 'Schema' : location.hash === '#saliva' ? 'Saliva' : 'Calc';
+  ['Calc', 'Saliva', 'Schema'].forEach(x => {
+    $('tab' + x).classList.toggle('hidden', x !== t);
+    $('tabBtn' + x).classList.toggle('active', x === t); $('tabBtn' + x).setAttribute('aria-selected', String(x === t));
+  });
+  if (t === 'Schema' && window.Schema) window.Schema.render();
 }
 window.addEventListener('hashchange', showTab);
 ['scFio', 'scDate', 'scDoc'].forEach(id => $(id).addEventListener('input', () => { if (id === 'scFio') $('pFio').value = $('scFio').value; compute(); if (window.Schema) window.Schema.render(); }));
@@ -1680,6 +1780,7 @@ $('btnPng').addEventListener('click', () => window.Schema.exportPng());
 $('btnPdf').addEventListener('click', () => window.Schema.exportPdf());
 init();
 impInit();
+if (window.Saliva) { window.Saliva.init(); compute(); }
 showTab();
 })();
 </script>
