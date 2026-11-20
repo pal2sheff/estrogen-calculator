@@ -139,6 +139,7 @@ textarea#concl { width: 100%; min-height: 300px; font-family: var(--font-mono); 
 .drop p { margin: 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
 .imp-status { font-size: 14px; display: flex; gap: 8px; align-items: center; }
 .imp-status.err { color: var(--bad); }
+.imp-status.warn { color: var(--warn); }
 .spin { flex: none; width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
@@ -292,8 +293,8 @@ textarea#salConcl { width: 100%; min-height: 300px; font-family: var(--font-mono
     <section class="card" aria-labelledby="h-imp">
       <header><h2 id="h-imp">Загрузить бланк анализа</h2><span class="hint">PDF из лаборатории, скан или фото бланка</span></header>
       <div class="drop" id="drop">
-        <div class="btns"><label class="btn primary" for="impFile" style="cursor:pointer;">Выбрать файл</label><input type="file" id="impFile" accept="application/pdf,.pdf,image/*" class="hidden"></div>
-        <p>или перетащите файл сюда. Файл обрабатывается только в вашем браузере и никуда не отправляется.</p>
+        <div class="btns"><label class="btn primary" for="impFile" style="cursor:pointer;">Выбрать файл</label><input type="file" id="impFile" accept="application/pdf,.pdf,image/*" class="hidden" multiple></div>
+        <p>или перетащите файлы сюда: можно сразу несколько, например анализ мочи и генетику. Файлы обрабатываются только в вашем браузере и никуда не отправляются.</p>
       </div>
       <div class="imp-status hidden" id="impStatus" role="status" aria-live="polite"></div>
       <div id="impReview" class="hidden" style="display:grid; gap:10px;">
@@ -557,7 +558,7 @@ const A = Object.fromEntries(ANALYTES.map(a => [a.k, a]));
 /* Ranges: [low, high]; null = no bound. Status keys: fol, ov, lut, pm, male. pmhrt falls back to lut. */
 const PROFILES = {
   invitro24: {
-    label: 'Суточная моча · мкг/сут · ГХ-МС (Инвитро KZ № 1771)',
+    label: 'Суточная моча · мкг/сут · ГХ-МС (Инвитро)',
     unit: 'мкг/сут', kind: 'ug24',
     analytes: ['E1', 'E2', 'E3', 'OH2E1', 'OH4E1', 'OH16E1', 'MeO2E1', 'PD'],
     r216: 'single',
@@ -1492,7 +1493,7 @@ function buildConclusion(c) {
     add(supp1, T.p2, 'Омега-3 (EPA+DHA) 1–2 г/сут.');
     if (!T.lowE && !F.lo16) add(supp2, T.p2, 'DIM 100–300 мг/сут (или I3C 200–400 мг/сут, не вместе) курсом 8–12 недель' + (T.meth || T.quin ? ', после налаженного метилирования: DIM увеличивает поток катехолэстрогенов' : '') + '.');
     add(supp2, T.p4, 'Ресвератрол 150–250 мг/сут.');
-    if (!T.lowE) add(supp2, T.load || T.conj, 'Кальций-D-глюкарат 500–1500 мг/сут.');
+    if (!T.lowE && !F.lo16) add(supp2, T.load || T.conj, 'Кальций-D-глюкарат 500–1500 мг/сут.');
     if (!supp1.length && supp2.length) { supp1.push(...supp2); supp2.length = 0; }
   }
 
@@ -1683,6 +1684,40 @@ function impRender() {
   $('impText').value = d.text;
   $('impReview').classList.remove('hidden');
 }
+async function impHandleMany(files) {
+  files = [...(files || [])].filter(Boolean);
+  if (files.length <= 1) return impHandle(files[0]);
+  if (!window.LabImport) { impSetStatus('Модуль импорта не загрузился. Обновите страницу.', 'err'); return; }
+  $('impReview').classList.add('hidden');
+  const st = $('status').value === 'pmhrt' ? 'lut' : $('status').value;
+  const all = { found: {}, genes: {}, patient: {}, text: '', fileName: '', method: '', format: null, ocr: false };
+  const names = [], ages = [], errs = []; let sal = 0;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i], pre = 'Файл ' + (i + 1) + ' из ' + files.length + ' («' + f.name + '»): ';
+    impSetStatus(pre + 'открываю…', 'busy');
+    try {
+      const res = await window.LabImport.readFile(f, st, m => impSetStatus(pre + m, 'busy'));
+      if (res.salivaPasses && window.Saliva) { window.Saliva.receive(res.salivaPasses, f.name, res.method); sal++; continue; }
+      const nMet = Object.keys(res.found).filter(k => k !== 'CREA' && k !== 'VOL').length;
+      Object.keys(res.found).forEach(k => { if (!all.found[k]) all.found[k] = res.found[k]; });
+      Object.keys(res.genes || {}).forEach(k => { if (!all.genes[k]) all.genes[k] = res.genes[k]; });
+      if (nMet && !all.format) { all.format = res.format; all.patient = Object.assign({}, all.patient, res.patient); }
+      else all.patient = Object.assign({}, res.patient, all.patient);
+      if (res.patient && res.patient.age) ages.push(res.patient.age);
+      all.ocr = all.ocr || !!res.ocr;
+      all.text += (all.text ? '\n\n' : '') + '===== ' + f.name + ' =====\n' + res.text;
+      names.push(f.name); all.method = [all.method, res.method].filter(Boolean).filter((x, j, a) => a.indexOf(x) === j).join(', ');
+    } catch (e) { console.error(e); errs.push('«' + f.name + '»: ' + ((e && e.message) || e)); }
+  }
+  if (!names.length) { impSetStatus(sal ? 'Бланк стероидов в слюне открыт на вкладке «Слюна».' + (errs.length ? ' Не прочитаны: ' + errs.join('; ') : '') : 'Не удалось прочитать файлы: ' + errs.join('; '), sal ? '' : 'err'); if (sal) location.hash = '#saliva'; return; }
+  all.format = all.format || 'custom'; all.fileName = names.join(' + ');
+  impData = all;
+  const n = Object.keys(all.found).filter(k => k !== 'CREA' && k !== 'VOL').length, ng = Object.keys(all.genes).length;
+  const parts = [n ? n + ' показ.' : '', ng ? ng + ' генотип.' : ''].filter(Boolean).join(' и ');
+  const ageWarn = ages.length > 1 && Math.max(...ages) - Math.min(...ages) > 1 ? ' Возраст в файлах различается (' + [...new Set(ages)].join(' и ') + '): проверьте, что это один пациент, или генетика сдана раньше.' : '';
+  impSetStatus((parts ? 'Готово: из ' + names.length + ' файлов найдено ' + parts + ' Проверьте и нажмите «Подставить в калькулятор».' : 'Показатели и генотипы не найдены автоматически.') + (sal ? ' Бланк слюны открыт на вкладке «Слюна».' : '') + ageWarn + (errs.length ? ' Не прочитаны: ' + errs.join('; ') : ''), parts ? (ageWarn ? 'warn' : '') : 'err');
+  impRender();
+}
 async function impHandle(file) {
   if (!file) return;
   if (!window.LabImport) { impSetStatus('Модуль импорта не загрузился. Обновите страницу.', 'err'); return; }
@@ -1730,6 +1765,7 @@ function impApply() {
   $('profile').value = pk;
   $('status').value = $('impStatusSel').value;
   if (d.patient.age) $('age').value = d.patient.age;
+  if (d.patient.date && $('scDate') && !$('scDate').value) $('scDate').value = d.patient.date;
   $('crea').value = ''; $('vol').value = '';
   const vals = {}; const refs = {};
   Object.keys(d.found).forEach(k => {
@@ -1752,10 +1788,10 @@ function impApply() {
 }
 function impInit() {
   const drop = $('drop'), inp = $('impFile');
-  inp.addEventListener('change', () => { impHandle(inp.files[0]); inp.value = ''; });
+  inp.addEventListener('change', () => { const fs = [...inp.files]; inp.value = ''; impHandleMany(fs); });
   ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
-  drop.addEventListener('drop', e => { const f = e.dataTransfer && e.dataTransfer.files[0]; impHandle(f); });
+  drop.addEventListener('drop', e => { impHandleMany(e.dataTransfer ? e.dataTransfer.files : []); });
   document.addEventListener('paste', e => { const it = [...(e.clipboardData ? e.clipboardData.files : [])][0]; if (it) impHandle(it); });
   $('impApply').addEventListener('click', impApply);
   const inp2 = $('impFile2');

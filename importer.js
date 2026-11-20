@@ -296,6 +296,8 @@ function detectPatient(text) {
     m = /(?:дата\s*рождения|д\.?\s*р\.?|date of birth|dob)\s*[:\-]?\s*(\d{2})[.\/](\d{2})[.\/](\d{4})/.exec(t);
     if (m) { const b = new Date(+m[3], +m[2] - 1, +m[1]); const now = new Date(); let a = now.getFullYear() - b.getFullYear(); if (now < new Date(now.getFullYear(), b.getMonth(), b.getDate())) a--; if (a > 0 && a < 110) p.age = a; }
   }
+  m = /дата\s*(?:взятия|забора|сбора)[^:\n]{0,20}[:\-]?\s*(\d{2})[.\/](\d{2})[.\/](\d{4})/.exec(t);
+  if (m) p.date = m[3] + '-' + m[2] + '-' + m[1];
   return p;
 }
 
@@ -321,6 +323,14 @@ function parseReport(lines, status) {
       // If the name is the last thing on the line, the value may sit on the next line (wrapped cell)
       let src = line;
       if (!/\d/.test(cleanSegment(seg)) && lines[idx + 1] && !findMatches(lines[idx + 1]).hits.length) { seg += ' ' + norm(lines[idx + 1]); src += ' ⏎ ' + lines[idx + 1]; }
+      // reference ranges by phase continue on the following lines (and may cross a page break)
+      if (i === hits.length - 1 && h.k !== 'CREA' && h.k !== 'VOL') {
+        for (let j = idx + 1; j < lines.length && j - idx <= 25; j++) {
+          if (findMatches(lines[j]).hits.length) break;
+          const nl = norm(lines[j]);
+          if (Object.values(PHASE_WORDS).some(re => re.test(nl)) && /\d/.test(nl)) { seg += ' ; ' + nl; src += ' ⏎ ' + lines[j]; }
+        }
+      }
       const r = parseSegment(h.k, seg, status, dutchLike);
       if (!r) return;
       if (h.k === 'CREA') {
