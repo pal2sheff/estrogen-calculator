@@ -374,7 +374,7 @@ function genotypeFrom(seg, v) {
     return null;
   }
   if (v.type === 'ta') {
-    const m = /\(?(?:ta\)?\s*)?(\*?1|\*?28|6|7)\s*\/\s*\(?(?:ta\)?\s*)?(\*?1|\*?28|6|7)(?![0-9])/i.exec(seg);
+    const m = /(?:\(?ta\)?\s*)?(\*?1|\*?28|6|7)\s*(?:\(?ta\)?)?\s*\/\s*(?:\(?ta\)?\s*)?(\*?1|\*?28|6|7)(?:\s*\(?ta\)?)?(?![0-9])/i.exec(seg);
     if (m) { const e = x => /28|7/.test(x); return { gt: m[1] + '/' + m[2], status: (e(m[1]) ? 1 : 0) + (e(m[2]) ? 1 : 0), how: 'генотип' }; }
     const li = labInterp(seg); return li == null ? null : { gt: '?', status: li, how: 'интерпретация лаборатории' };
   }
@@ -419,12 +419,56 @@ function pickVariant(gene, seg) {
   if (m) { v = vs.find(x => countEff(m[1], m[2], x.ref, x.eff, null) != null); if (v) return v; }
   return null;
 }
+const GT_ALLELE = '(?:\\(TA\\))?\\d{1,2}(?:TA)?|\\*\\d{1,2}|[ACGT]|del|ins|null|[+-]';
+const GT_TOKEN = new RegExp('(?<![A-Za-z0-9/])(' + GT_ALLELE + ')\\s*\\/\\s*(' + GT_ALLELE + ')(?![A-Za-z0-9/])', 'gi');
+const INT_TOKEN = /(norm|polym|mut)\s*\/\s*(norm|polym|mut)/gi;
 function parseGenetics(lines) {
   const found = {};
   const take = (v, r, src) => { if (!v || !r) return; const old = found[v.id]; if (old && !(old.gt === '?' && r.gt !== '?') && !(old.status == null && r.status != null)) return; found[v.id] = Object.assign(r, { src: src.trim().slice(0, 160) }); };
   const cyr = { 'А': 'A', 'С': 'C', 'Т': 'T', 'а': 'a', 'с': 'c', 'т': 't' };
   lines = lines.map(l => l.replace(/([АСТACGT])(\s*[\/>\\]\s*)([АСТACGT])/g, (x, a, sp, b) => (cyr[a] || a) + sp + (cyr[b] || b)));
+  // Rows that list several rs numbers (genes side by side in one cell): pair rs, genotype and grading by position
+  const multi = new Set();
   lines.forEach((line, idx) => {
+    const rsList = (line.match(/rs\s?\d{3,}/gi) || []).map(x => x.replace(/\s/g, '').toLowerCase());
+    if (rsList.length < 2) return;
+    const lastRs = line.toLowerCase().lastIndexOf(rsList[rsList.length - 1]);
+    let tail = line.slice(lastRs + rsList[rsList.length - 1].length), j = idx + 1;
+    const gts = () => (tail.replace(INT_TOKEN, ' ').match(GT_TOKEN) || []);
+    while (gts().length < rsList.length && j <= idx + 2 && lines[j] && !/rs\s?\d{3,}/i.test(lines[j])) tail += '  ' + lines[j++];
+    const G = gts(), I = tail.match(INT_TOKEN) || [];
+    if (G.length !== rsList.length) return;
+    multi.add(idx);
+    rsList.forEach((rs, k) => {
+      const v = catalog().find(x => (x.rs || []).includes(rs)); if (!v) return;
+      const seg = rs + ' ' + G[k] + (I.length === rsList.length ? ' ' + I[k] : '');
+      const r = genotypeFrom(seg, v); if (r) take(v, r, line + ' → ' + seg);
+    });
+  });
+  // Several gene symbols side by side without rs numbers: "GSTM1 GSTT1 del/del ins/ins"
+  lines.forEach((line, idx) => {
+    if (multi.has(idx) || /rs\s?\d{3,}/i.test(line)) return;
+    const block = /(?:^|\s)((?:[A-Z][A-Za-z0-9-]{1,9}(?:\s*[,\/]?\s+|\s*,\s*)){1,5}[A-Z][A-Za-z0-9-]{1,9})(?=\s|$)/.exec(line);
+    if (!block) return;
+    const genes = block[1].split(/[\s,\/]+/).filter(Boolean);
+    const tracked = genes.map(g => { GENE_RE.lastIndex = 0; const m = GENE_RE.exec(' ' + g.toLowerCase()); return m && m[1] === g.toLowerCase() ? (GENE_ALIAS[m[1]] || m[1].toUpperCase()) : null; });
+    if (genes.length < 2 || tracked.filter(Boolean).length < 1) return;
+    let tail = line.slice(block.index + block[0].length), j = idx + 1;
+    const gts = () => (tail.replace(INT_TOKEN, ' ').match(GT_TOKEN) || []);
+    while (gts().length < genes.length && j <= idx + 2 && lines[j] && !GENE_RE.test(lines[j].toLowerCase())) { GENE_RE.lastIndex = 0; tail += '  ' + lines[j++]; }
+    GENE_RE.lastIndex = 0;
+    const G = gts(), I = tail.match(INT_TOKEN) || [];
+    if (G.length !== genes.length) return;
+    multi.add(idx);
+    tracked.forEach((gene, k) => {
+      if (!gene) return;
+      const vs = catalog().filter(x => x.gene === gene); const v = vs.length === 1 ? vs[0] : pickVariant(gene, G[k]); if (!v) return;
+      const seg = G[k] + (I.length === genes.length ? ' ' + I[k] : '');
+      const r = genotypeFrom(seg, v); if (r) take(v, r, line + ' → ' + gene + ' ' + seg);
+    });
+  });
+  lines.forEach((line, idx) => {
+    if (multi.has(idx)) return; // handled above
     const low = line.toLowerCase();
     // "Выявленный генотип A/A варианта c.1384A>G гена CYP1A1"
     const sm = /генотип\s+(\S+)\s+(?:варианта|полиморфизма|маркера)\s+(.{0,60}?)\s*гена\s+([a-z0-9]+)/i.exec(line);
@@ -473,7 +517,8 @@ async function readFile(file, status, onStatus) {
     lines = res.lines; method = 'текстовый слой PDF';
     const parsed = parseReport(lines, status);
     parsed.genes = parseGenetics(lines);
-    const nFound = Object.keys(parsed.found).filter(k => k !== 'CREA' && k !== 'VOL').length;
+    let nFound = Object.keys(parsed.found).filter(k => k !== 'CREA' && k !== 'VOL').length;
+    if (Object.keys(parsed.genes).length >= 3 && nFound <= 3) { parsed.found = {}; nFound = 0; } // a genetic report: numbers in its text are not lab results
     const salN = window.Saliva ? window.Saliva.count(window.Saliva.mergePasses([lines], status, null)) : 0;
     if (salN >= 2 && nFound < 2 && window.Saliva.looksLikeSaliva([lines])) return Object.assign(parsed, { method, pages: res.pages, salivaPasses: [lines] });
     if (nFound >= 2 || Object.keys(parsed.genes).length >= 2) return Object.assign(parsed, { method, pages: res.pages });
